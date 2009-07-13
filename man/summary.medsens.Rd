@@ -30,29 +30,23 @@ Imai, Kosuke, Luke Keele and Teppei Yamamoto (2009) Identification, Inference, a
 
 \examples{ 
 
-#Example with JOBS II Field experiment
-#For illustration purposes simulations set to low number.
-
-#Example with JOBS II Field experiment
-data(jobs)
-
 \dontrun{
 #########################################
-#continuous mediator and continuous outcome
+#Continuous mediator and continuous outcome
 #########################################
 
-#fit parametric model
-model.m <- lm(job_seek ~ treat + depress1 + econ_hard + sex + age  + occp + marital + nonwhite + educ + income, data=jobs)
-model.y <- lm(depress2 ~ treat + job_seek + depress1 + econ_hard + sex + age + occp + marital + nonwhite + educ + income, data=jobs)
-#pass model objects through medsens function
-sens.cont <- medsens(model.m, model.y, T="treat", M="job_seek", INT=FALSE,  DETAIL=FALSE, sims=1000)
-#use summary function to display values of rho where 95% confidence interval overlaps with 0.
+#Fit parametric models
+model.m <- lm(job_seek ~ treat + depress1, data=jobs)
+model.y <- lm(depress2 ~ treat + job_seek + depress1, data=jobs)
+
+#Pass model objects through mediate function
+med.cont <- mediate(model.m, model.y, treat="treat", mediator="job_seek", sims=1000)
+
+#Pass mediate output through medsens function
+sens.cont <- medsens(med.cont, sims=1000, rho.by=.1)
+
+#Use summary function to display values of rho where 95% confidence interval overlaps with 0
 summary(sens.cont)
-#plot mediation effect and 95% CI's for each value of rho
-plot(sens.cont, main="JOBS", ylim=c(-.2,.2))
-
-
-
 
 #########################################
 #binary outcome and continuous mediator
@@ -60,10 +54,9 @@ plot(sens.cont, main="JOBS", ylim=c(-.2,.2))
 
 model.m <- lm(job_seek ~ treat + depress1 + econ_hard + sex + age + occp + marital + nonwhite + educ + income, data=jobs)
 model.y <- glm(work1 ~ treat + job_seek + depress1 + econ_hard + sex + age + occp + marital + nonwhite + educ + income, family=binomial(link="probit"), data=jobs)
-sens.dichO <- medsens(model.m, model.y, T="treat", M="job_seek", INT=FALSE,  DETAIL=FALSE)
-summary(sens.dichO)
-plot(sens.dichO, main="JOBS", ylim=c(-.2,.2))
-}
-
+med.bin <- mediate(model.m, model.y, treat="treat", mediator="job_seek", sims=1000)
+sens.bin <- medsens(med.bin, sims=1000, rho.by=.1)
+summary(sens.bin)
 
 } 
+}
