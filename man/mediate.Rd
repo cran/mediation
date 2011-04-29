@@ -2,102 +2,180 @@
 \alias{mediate} 
 \title{Causal Mediation Analysis} 
 \description{ 
-Function to estimate causal mediation effects.
+'mediate' is used to estimate various quantities for causal mediation analysis, including average causal mediation effects (indirect effect), average direct effects, proportions mediated, and total effect.
 } 
 \usage{
 
-mediate(model.m, model.y, sims=1000, boot=FALSE, INT=FALSE, treat="treat.name",
-mediator="med.name", control=NULL)
+mediate(model.m, model.y, sims=1000, boot=FALSE, 
+        treat="treat.name", mediator="med.name", 
+        control=NULL, conf.level=.95, 
+        control.value=0, treat.value=1, 
+        long=TRUE, dropobs=FALSE, robustSE=FALSE, ...)
 
 } 
 
 \arguments{ 
-\item{model.m}{ R model object for mediator.  Can be of class lm, polr, glm, or gam.} 
-\item{model.y}{ R model object for outcome.  Can be of class lm, glm, gam, or rq.} 
-\item{sims}{ Number of Monte Carlo draws for nonparametric bootstrap or quasi-Bayesian approximation.} 
-\item{boot}{ If FALSE a quasi-Bayesian approximation is used for confidence interval, if TRUE nonparametric bootstrap will be used.}
-\item{INT}{ If TRUE this indicates that treatment is interacted with mediator in \code{model.y} object. Default is FALSE.} 
-\item{treat}{ Name of binary treatment indicator.}
-\item{mediator}{ Name of mediator variable.}
-\item{control}{ Name of binary treatment indicator for control. Only necessary for gam() object with interaction.}
+\item{model.m}{ a fitted model object for mediator.  Can be of class 'lm', 'polr', 'glm', 'gam', or 'rq'.} 
+\item{model.y}{ a fitted model object for outcome.  Can be of class 'lm', 'polr', 'glm', 'gam', 'vglm', or 'rq'.} 
+\item{sims}{ number of Monte Carlo draws for nonparametric bootstrap or quasi-Bayesian approximation.} 
+\item{boot}{ a logical value. if 'FALSE' a quasi-Bayesian approximation is used for confidence intervals; if 'TRUE' nonparametric bootstrap will be used. Default is 'FALSE'.}
+\item{conf.level}{ level of the returned two-sided confidence intervals.  Default is to return
+the 2.5 and 97.5 percentiles of the simulated quantities.} 
+\item{treat}{ a character string indicating the name of treatment variable used in the models.  The treatment can be either binary (integer or a two-valued factor) or continuous (numeric).}
+\item{mediator}{ a character string indicating the name of mediator variable used in the models.}
+\item{control}{ a character string indicating the name of control group indicator. Only relevant if 'model.y' is of class 'gam'. If provided, 'd0', 'z0' and 'n0' are allowed to differ from 'd1', 'z1' and 'n1', respectively.}
+\item{control.value}{ value of the treatment variable used as the control condition. Only relevant when 'treat' is continuous.  Default is 0.}
+\item{treat.value}{ value of the treatment variable used as the treatment condition. Only relevant when 'treat' is continuous. Default is 1.}
+\item{long}{ a logical value. If 'TRUE', the output will contain the entire sets of simulation draws of the the average causal mediation effects, direct effects, proportions mediated, and total effect. Default is 'TRUE'.}
+\item{dropobs}{ a logical value indicating the behavior when the model frames of 'model.m' and 'model.y' are composed of different observations. If 'TRUE', models will be re-fitted using the intersection of the two data frames. If 'FALSE', error is returned. Default is 'FALSE'.}
+\item{robustSE}{ a logical value. If 'TRUE', heteroskedasticisy-consistent standard errors will be used in quasi-Bayesian simulations. Ignored if 'boot' is 'TRUE' or neither 'model.m' nor 'model.y' has a method for \code{vcovHC} in the \code{sandwich} package. Default is 'FALSE'.}
+\item{...}{ other arguments passed to \code{vcovHC} in the \code{sandwich} package: typically the 'type' argument. Ignored if 'robustSE' is 'FALSE'.}
 }
 
-\details{This is the workhorse function for estimating mediation effects for a variety of data types. For a continuous mediator variable and a continuous outcome variable, the results will be identical to the usual Baron and Kenny method.  The function can, however, accomodate other data types including binary outcomes and mediators and discrete mediators.  Continuous variables can also be modeled nonparametrically or semiparametrically.
+\details{This is the workhorse function for estimating causal mediation effects for a variety of data types. The average causal mediation effect (ACME) represents the expected difference in the potential outcome when the mediator took the value that would realize under the treatment condition as opposed to the control condition, while the treatment status itself is held constant. That is,
+\deqn{\delta(t) \ = \ E\{Y(t, M(t_1)) - Y(t, M(t_0))\},}{%
+    \delta(t) = E[Y(t, M(t1)) - Y(t, M(t0))],}
+where \eqn{t, t_1, t_0}{t, t1, t0} are particular values of the treatment \eqn{T} such that \eqn{t_1 \neq t_0}{t1 != t0}, \eqn{M(t)} is the potential mediator, and \eqn{Y(t,m)} is the potential outcome variable. The average direct effect (ADE) is defined similarly as,
+\deqn{\zeta(t) \ = \ E\{Y(t_1, M(t)) - Y(t_0, M(t))\},}{%
+    \zeta(t) = E[Y(t1, M(t)) - Y(t0, M(t))],}
+which represents the expected difference in the potential outcome when the treatment is changed but the mediator is held constant at the value that would realize if the treatment equals \eqn{t}. The two quantities on average add up to the total effect of the treatment on the outcome, \eqn{\tau}. See the references for more details.
 
-In fitting the model.y object with an interaction between treatment and mediator, the user must input the interation in the format treatment:mediator.  Furthermore, the user must make sure to set the INT option to TRUE since the current function does not sense the existence of the interaction term automatically. 
+When both the mediator model ('model.m') and outcome model ('model.y') are linear, the results will be identical to the usual LSEM method by Baron and Kenny (1986).  The function can, however, accommodate other data types including binary, ordered and count outcomes and mediators as well as censored outcomes.  Variables can also be modeled nonparametrically, semiparametrically, or using quantile regressions.
 
-Users should note that use of the nonparametric bootstrap requires several minutes of computing time.}
+The prior weights in the mediator and outcome models are taken as sampling weights and the estimated effects will be weighted averages when non-NULL weights are used in fitting 'model.m' and 'model.y'. This will be useful when data does not come from a simple random sample, for example. 
 
-\section{Warning}{These functions assume that all missing values have been removed from the data set.  This can be done using the \code{na.omit()} command before the outcome and mediation models are fitted.}
+As of version 3.0, the mediator model can be of either 'lm', 'glm', 'polr', 'gam', or 'rq' class, corresponding respectively to the linear regression models, generalized linear models, ordered response models, generalized additive models, or quantile regression models. For binary response models, the 'mediator' must be a numeric variable with values 0 or 1 as opposed to a factor. Quasi-likelihood-based inferences are not allowed for the mediator model because the functional form must be exactly specified for the estimation algorithm to work.  The 'binomial' family can only be used for binary response mediators and cannot be used for multiple-trial responses.  This is due to conflicts between how the latter type of models are implemented in \code{\link{glm}} and how 'mediate' is currently written.
 
-\value{\code{mediate} returns an object of class "\code{mediate}".  The function \code{summary} is used to obtain a table of the results.  The object \code{mediate} is a list that contains the following components.  Some of these elements are not available depending on whether INT is specified as TRUE or FALSE by the user.
-\item{d0}{point estimate for mediation effect under control.}
-\item{d1}{point estimate for mediation effect under treatment.}
-\item{d0.ci}{confidence interval for mediation effect under control. For all confidence intervals, the confidence level is set to 95 percent.}
-\item{d1.ci}{confidence interval for mediation effect under control.}
+For the outcome model, the censored regression model fitted via package \code{VGAM} (of class 'vglm' with 'family@vfamily' equal to "tobit") can be used in addition to the models listed above for the mediator.  The 'mediate' function is not compatible with censored regression models fitted via other packages.  When the quantile regression is used for the outcome model ('rq'), the estimated quantities are quantile causal mediation effects, quantile direct effects and etc., instead of the average effects.
+
+The quasi-Bayesian approximation (King et al. 2000) cannot be used if 'model.m' is of class 'rq' or 'gam', or if 'model.y' is of class 'gam' or 'polr'. In these cases, either error is returned or nonparametric bootstrap is forced. Users should note that use of the nonparametric bootstrap often requires significant computing time, especially when 'sims' is set to a large value.
+
+The 'control' argument must be provided when 'gam' is used for the outcome model and user wants to allow ACME and ADE to vary as functions of \eqn{t} (i.e., to relax the "no interaction" assumption). Note that the outcome model must be fitted via package \code{\link{mgcv}} with appropriate formula using \code{\link{s}} constructs (see Imai et al. 2009 in the references). For other model types, the interaction can be allowed by including an interaction term between \eqn{T} and \eqn{M} in the linear predictor of the outcome model. As of version 3.0, the 'INT' argument is deprecated and the existence of the interaction term is automatically detected (except for 'gam' outcome models).
+
+When the treatment variable is continuous, user must specify the values of \eqn{t_1}{t1} and \eqn{t_0}{t0} using the 'treat.value' and 'control.value' arguments, respectively.  The value of \eqn{t} in the above expressions is set to \eqn{t_0}{t0} for 'd0', 'z0', etc. and to \eqn{t_1}{t1} for 'd1', 'z1', etc.
+}
+
+
+\value{\code{mediate} returns an object of class "\code{mediate}" (or "\code{mediate.order}" if the outcome model used is 'polr'), a list that contains the components listed below.  Some of these elements are not available if 'long' is set to 'FALSE' by the user.
+
+The function \code{summary} (i.e., \code{summary.mediate} or \code{summary.mediate.order}) can be used to obtain a table of the results.  The function \code{plot} (i.e., \code{plot.mediate} or \code{plot.mediate.order}) can be used to produce a plot of the estimated average causal mediation, average direct, and total effects along with their confidence intervals.
+
+\item{d0, d1}{point estimates for average causal mediation effects under the control and treatment conditions.}
+\item{d0.ci, d1.ci}{confidence intervals for average causal mediation effects. The confidence level is set at the value specified in 'conf.level'.}
+\item{d0.sims, d1.sims}{vectors of length 'sims' containing simulation draws of average causal mediation effects.}
+\item{z0, z1}{point estimates for average direct effect under the control and treatment conditions.}
+\item{z0.ci, z1.ci}{confidence intervals for average direct effects.}
+\item{z0.sims, z1.sims}{vectors of length 'sims' containing simulation draws of average direct effects.}
+\item{n0, n1}{the "proportions mediated", or the size of the average causal mediation effects relative to the total effect.}
+\item{n0.ci, n1.ci}{confidence intervals for the proportions mediated.}
+\item{n0.sims, n1.sims}{vectors of length 'sims' containing simulation draws of the proportions mediated.}
 \item{tau.coef}{point estimate for total effect.}
 \item{tau.ci}{confidence interval for total effect.}
-\item{z0}{point estimate for direct effect under control.}
-\item{z1}{point estimate for direct effect under treatment.}
-\item{z0.ci}{confidence interval for direct effect under control.}
-\item{z1.ci}{confidence interval for direct effect under control.}
-\item{pct.coef}{percentage of total effect due to mediation.}
-\item{pct.ci}{confidence interval for percentage of total effect due to mediation.}
-\item{boot}{the boot argument used.}
-\item{INT}{the INT argument used.}
-\item{treat}{name of the 'treat' variable used.}
-\item{mediator}{name of the 'mediator' variable used.}
-\item{call.m}{call of the mediator model used.}
-\item{call.y}{call of the outcome model used.}
-\item{env.m}{environment in which the mediator model was fitted.}
-\item{env.y}{environment in which the outcome model was fitted.}
+\item{tau.sims}{a vector of length 'sims' containing simulation draws of the total effect.}
+\item{d.avg, z.avg, n.avg}{simple averages of d0 and d1, z0 and z1, n0 and n1, respectively, which users may want to use as summary values when those quantities differ.}
+\item{d.avg.ci, z.avg.ci, n.avg.ci}{confidence intervals for the above.}
+\item{d.avg.sims, z.avg.sims, n.avg.sims}{vectors of length 'sims' containing simulation draws of d.avg, z.avg and n.avg, respectively.}
+\item{boot}{logical, the 'boot' argument used.}
+\item{treat}{a character string indicating the name of the 'treat' variable used.}
+\item{mediator}{a character string indicating the name of the 'mediator' variable used.}
+\item{INT}{a logical value indicating whether the model specification allows the effects to differ between the treatment and control conditions.}
+\item{conf.level}{the confidence level used. }
+\item{model.y}{the outcome model used.}
+\item{model.m}{the mediator model used.}
+\item{control.value}{value of the treatment variable used as the control condition.}
+\item{treat.value}{value of the treatment variable used as the treatment condition.}
+\item{nobs}{number of observations in the model frame for 'model.m' and 'model.y'. May differ from the numbers in the original models input to 'mediate' if 'dropobs' was 'TRUE'.}
 }
 
-\references{Imai, Kosuke, Luke Keele and Dustin Tingley (2009) A General Approach to Causal Mediation Analysis.
-Imai, Kosuke, Luke Keele and Teppei Yamamoto (2009) Identification, Inference, and Sensitivity Analysis for Causal Mediation Effects.
-Imai, Kosuke, Luke Keele, Dustin Tingley, and Teppei Yamamoto. (2009) "Causal Mediation Analysis Using R" in Advances in Social Science Research Using R, ed. H. D. Vinod New York: Springer. Forthcoming.} 
+\references{Imai, K., Keele, L. and Tingley, D. (2010) A General Approach to Causal Mediation Analysis, Psychological Methods, Vol. 15, No. 4 (December), pp. 309-334.
 
-\author{Luke Keele, Ohio State University, \email{keele.4@osu.edu} , Dustin Tingley, Princeton University, \email{dtingley@princeton.edu}, Teppei Yamamoto, Princeton University, \email{tyamamot@princeton.edu}, Kosuke Imai, Princeton University, \email{kimai@princeton.edu} }
+Imai, K., Keele, L. and Yamamoto, T. (2010) Identification, Inference, and Sensitivity Analysis for Causal Mediation Effects, Statistical Science, Vol. 25, No. 1 (February), pp. 51-71.
+
+Imai, K., Keele, L., Tingley, D. and Yamamoto, T. (2009) "Causal Mediation Analysis Using R" in Advances in Social Science Research Using R, ed. H. D. Vinod New York: Springer.} 
+
+\author{Dustin Tingley, Harvard University, \email{dtingley@gov.harvard.edu}, 
+Teppei Yamamoto, Princeton University, \email{tyamamot@princeton.edu}, 
+Luke Keele, Ohio State University, \email{keele.4@osu.edu}, 
+Kosuke Imai, Princeton University, \email{kimai@princeton.edu} }
  
-\seealso{See also \code{\link{medsens}} }
+\seealso{\code{\link{medsens}}, \code{\link{plot.mediate}}, \code{\link{summary.mediate}}, \code{\link{mediations}}, \code{vcovHC} }
 
 \examples{ 
-#Example with JOBS II Field experiment
+# Examples with JOBS II Field Experiment
 
-#**For illustration purposes simulations set to low number**
+# **For illustration purposes a small number of simulations are used**
 
 data(jobs)
 
 ####################################################
-#Continuous Outcome and Continuous Mediator
+# Example 1: Linear Outcome and Mediator Models
 ####################################################
-
 b <- lm(job_seek ~ treat + econ_hard + sex + age, data=jobs)
-c <- lm(depress2 ~ treat + job_seek + depress1 + econ_hard + sex + age, data=jobs)
+c <- lm(depress2 ~ treat + job_seek + econ_hard + sex + age, data=jobs)
 
-#Calculates quantities using quasi-Bayesian approximation
-#The general format of the function is to record two model objects
-#The first for the mediator the second for the outcome variable 
-continuous <- mediate(b, c, sims=10, treat="treat", mediator="job_seek")
-summary(continuous)
+# Estimation via quasi-Bayesian approximation
+contcont <- mediate(b, c, sims=50, treat="treat", mediator="job_seek")
+summary(contcont)
+plot(contcont)
 
-#Calculates quantities using the non-parametric bootstrap - This takes several minutes
-continuous_boot <- mediate(b, c, boot=TRUE, sims=10, treat="treat", mediator="job_seek")
-summary(continuous_boot)
+# Estimation via nonparametric bootstrap
+contcont.boot <- mediate(b, c, boot=TRUE, sims=50, treat="treat", mediator="job_seek")
+summary(contcont.boot)
 
-#Interaction term between treatment and mediator is included in the model
-b <- lm(job_seek ~ treat + depress1, data=jobs)
-d <- lm(depress2 ~ treat + job_seek + treat:job_seek + depress1, data=jobs)
-cont.int <- mediate(b, d, sims=10, INT=TRUE, treat="treat", mediator="job_seek")
-summary(cont.int)
+# Allowing treatment-mediator interaction
+d <- lm(depress2 ~ treat + job_seek + treat:job_seek + econ_hard + sex + age, data=jobs)
+contcont.int <- mediate(b, d, sims=50, treat="treat", mediator="job_seek")
+summary(contcont.int)
+
+# Continuous treatment
+jobs$treat_cont <- jobs$treat + rnorm(nrow(jobs))  # (hypothetical) continuous treatment
+b.contT <- lm(job_seek ~ treat_cont + econ_hard + sex + age, data=jobs)
+c.contT <- lm(depress2 ~ treat_cont + job_seek + econ_hard + sex + age, data=jobs)
+contcont.cont <- mediate(b.contT, c.contT, sims=50, 
+                    treat="treat_cont", mediator="job_seek",
+                    treat.value = 4, control.value = -2)
+summary(contcont.cont)
 
 ######################################################
-#Binary Outcome
+# Example 2: Binary Outcome and Ordered Mediator
 ######################################################
+b.ord <- polr(job_disc ~ treat + econ_hard + sex + age, data=jobs,
+            method="probit", Hess=TRUE)
+d.bin <- glm(work1 ~ treat * job_disc + econ_hard + sex + age, data=jobs,
+            family=binomial(link="probit"))
+ordbin <- mediate(b.ord, d.bin, sims=50, treat="treat", mediator="job_disc")
+summary(ordbin)
 
-b <- lm(job_seek ~ treat + depress1, data=jobs)
-c <- glm(work1 ~ treat + job_seek + depress1, family=binomial(link="probit"), data=jobs)
-binary <- mediate(b, c, sims=10, treat="treat", mediator="job_seek")
-summary(binary)
+# Using heteroskedasticity-consistent standard errors
+require(sandwich)
+ordbin.rb <- mediate(b.ord, d.bin, sims=50, treat="treat", mediator="job_disc",
+            robustSE=TRUE)
+summary(ordbin.rb)
+
+######################################################
+# Example 3: Quantile Causal Mediation Effect
+######################################################
+require(quantreg)
+c.quan <- rq(depress2 ~ treat + job_seek + econ_hard + sex + age, data=jobs,
+            tau = 0.5)  # median
+contquan <- mediate(b, c.quan, sims=50, treat="treat", mediator="job_seek")
+summary(contquan)
+
+######################################################
+# Example 4: GAM Outcome
+######################################################
+require(mgcv)
+c.gam <- gam(depress2 ~ treat + s(job_seek, bs="cr") + 
+            econ_hard + sex + age, data=jobs)
+contgam <- mediate(b, c.gam, sims=10, treat="treat", 
+                mediator="job_seek", boot=TRUE)
+summary(contgam)
+
+# With interaction
+d.gam <- gam(depress2 ~ treat + s(job_seek, by = treat) + 
+    s(job_seek, by = control) + econ_hard + sex + age, data=jobs)
+contgam.int <- mediate(b, d.gam, sims=10, treat="treat", mediator="job_seek",
+    control = "control", boot=TRUE)
+summary(contgam.int)
 
 } 
