@@ -2,7 +2,7 @@ mediate <- function(model.m, model.y, sims=1000, boot=FALSE,
                     treat="treat.name", mediator="med.name", 
                     control=NULL, conf.level=.95,
                     control.value=0, treat.value=1, 
-                    long=TRUE, dropobs=FALSE, robustSE = FALSE, ...){
+                    long=TRUE, dropobs=FALSE, robustSE = FALSE, cluster=NULL, ...){
     
     # Warn users who still use INT option
     if(match("INT", names(match.call()), 0L)){
@@ -15,6 +15,22 @@ mediate <- function(model.m, model.y, sims=1000, boot=FALSE,
         warning("'robustSE' is ignored for nonparametric bootstrap")
     }
     
+    if(robustSE & !is.null(cluster)){
+        stop("Choose either robustSE or cluster SE option")
+    }
+
+    if(!is.null(cluster)){    
+    getvcov <- function(dat,fm, cluster){
+              #fm is the model object  
+              attach(dat, warn.conflicts = F)
+              M <- length(unique(cluster))  
+              N <- length(cluster)              
+              K <- fm$rank                     
+              dfc <- (M/(M-1))*((N-1)/(N-K)) 
+              uj  <- apply(estfun(fm),2, function(x) tapply(x, cluster, sum));
+              vcovCL <- dfc*sandwich(fm, meat=crossprod(uj)/N)
+              out <- vcovCL}
+    }
     
     # Model type indicators
     isGam.y <- class(model.y)[1] == "gam"
@@ -22,8 +38,8 @@ mediate <- function(model.m, model.y, sims=1000, boot=FALSE,
     isVglm.y <- class(model.y)[1] == "vglm"
     isRq.y <- class(model.y)[1] == "rq"
     isRq.m <- class(model.m)[1] == "rq"
-    isOrdered.y <- class(model.y)[1] == "polr"
-    isOrdered.m <- class(model.m)[1] == "polr"
+    isOrdered.y <- inherits(model.y, "polr")
+    isOrdered.m <- inherits(model.m, "polr")
     
     # Drop observations not common to both mediator and outcome models
     if(dropobs){
@@ -228,7 +244,7 @@ mediate <- function(model.m, model.y, sims=1000, boot=FALSE,
             
             # Get mean and variance parameters for simulations
             MModel.coef <- model.m$coef
-            if(ClassM=="polr"){  # TRUE if model.m is ordered
+            if(isOrdered.m){
                 if(is.null(model.m$Hess)){
                     cat("mediator model object does not contain 'Hessian';")
                 }
@@ -237,6 +253,8 @@ mediate <- function(model.m, model.y, sims=1000, boot=FALSE,
             } else {
                 if(robustSE){
                     MModel.var.cov <- vcovHC(model.m, ...)
+                } else if(!is.null(cluster)){
+                    MModel.var.cov <- getvcov(m.data, model.m, cluster)
                 } else {
                     MModel.var.cov <- vcov(model.m)
                 }
@@ -252,6 +270,8 @@ mediate <- function(model.m, model.y, sims=1000, boot=FALSE,
             } else{
                 if(robustSE){
                     TMmodel.var.cov <- vcovHC(model.y, ...)
+                } else if(!is.null(cluster)){
+                    TMmodel.var.cov <- getvcov(y.data, model.y, cluster)
                 } else {
                     TMmodel.var.cov <- vcov(model.y)
                 }
@@ -314,7 +334,7 @@ mediate <- function(model.m, model.y, sims=1000, boot=FALSE,
                 }
             
             ### Case I-1-b: Ordered mediator
-            } else if(ClassM=="polr"){
+            } else if(isOrdered.m){
                 if(model.m$method=="logistic"){
                     linkfn <- plogis
                 } else if(model.m$method=="probit") {
@@ -581,7 +601,7 @@ mediate <- function(model.m, model.y, sims=1000, boot=FALSE,
                 Call.Y.t$weights  <- y.data[index,"(weights)"]
                 
                 # TODO: Verify if below is unnecessary with all outcome model types.
-                if(ClassM=="polr" && length(unique(y.data[index,mediator]))!=m){
+                if(isOrdered.m && length(unique(y.data[index,mediator]))!=m){
                         stop("insufficient variation on mediator")
                 }
                 
@@ -633,7 +653,7 @@ mediate <- function(model.m, model.y, sims=1000, boot=FALSE,
                 }
             
                 ### Case I-2-b: Ordered Mediator
-                } else if(ClassM=="polr") {
+                } else if(isOrdered.m) {
                     probs_m1 <- predict(new.fit.M, newdata=pred.data.t, type="probs")
                     probs_m0 <- predict(new.fit.M, newdata=pred.data.c, type="probs")
                     draws_m1 <- matrix(NA, n, m)
@@ -889,7 +909,7 @@ mediate <- function(model.m, model.y, sims=1000, boot=FALSE,
             new.fit.M <- eval.parent(call.m)
             new.fit.t <- eval.parent(call.y)
             
-            if(ClassM=="polr" && length(unique(y.data[index,mediator]))!=m){
+            if(isOrdered.m && length(unique(y.data[index,mediator]))!=m){
                 # Modify the coefficients when mediator has empty cells
                 coefnames.y <- names(model.y$coefficients)
                 coefnames.new.y <- names(new.fit.t$coefficients)
@@ -914,6 +934,7 @@ mediate <- function(model.m, model.y, sims=1000, boot=FALSE,
                 pred.data.t[,treat] <- as.numeric(pred.data.t[,treat])
                 pred.data.c[,treat] <- as.numeric(pred.data.c[,treat])
             } 
+
             
             ### Case II-a: GLM Mediator
             if(ClassM=="glm" || isGam.m){
@@ -945,7 +966,7 @@ mediate <- function(model.m, model.y, sims=1000, boot=FALSE,
                 }
                     
             ### Case II-b: Ordered Mediator
-            } else if(ClassM=="polr") {
+            } else if(isOrdered.m) {
                 probs_m1 <- predict(new.fit.M, type="probs", newdata=pred.data.t)
                 probs_m0 <- predict(new.fit.M, type="probs", newdata=pred.data.c)
                 draws_m1 <- matrix(NA, n, m)
