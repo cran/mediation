@@ -1,5 +1,5 @@
-ca6ab44ce85925b098665ccb1c6d661e *ChangeLog
-b7763bd223223dc1e9d748dc8d0fef5e *DESCRIPTION
+a5881f6106cb6efa3337e181b0d7af7a *ChangeLog
+531bf3a947da848d88da62f775d5bbc1 *DESCRIPTION
 cdff54b3d091644d8b45ac8d495cbccf *NAMESPACE
 5c2fa39df1596fc8294c3cf7a2340201 *R/mediate.R
 1cbae63633dd332f89d2d8fea1519187 *R/mediations.R
@@ -9,13 +9,13 @@ d3ca6d67e5975aba40c901e57305e718 *data/jobs.RData
 9d3ad464245afa68ba6f09013d0da350 *demo/00Index
 1ef19ebec1b5b43c9e0e0d2f807be575 *demo/mediation-code.R
 8361a48117d9e48ed9a8b8df40614af1 *inst/CITATION
-0ba1c8a6da184655724f0fe4892b22f8 *inst/doc/BinaryMediator-Sensitivity-Rpaper.pdf
-06fc067ebda845d5c375eed09611cbb6 *inst/doc/Rho-R2-ContCont-JOBS.pdf
-ec14fe2d0e27b1eb34be5ed059818d29 *inst/doc/Rho-R2-JobsBinOutcome.pdf
+01f66a0b60e41c310306898f29c4b6b9 *inst/doc/BinaryMediator-Sensitivity-Rpaper.pdf
+3969f9b52c1be3ff0e9a23d716cbe2ba *inst/doc/Rho-R2-ContCont-JOBS.pdf
+74595220153441c0b5ba7cac7fda86e3 *inst/doc/Rho-R2-JobsBinOutcome.pdf
 d7ede4bb5f2f380c31479962cf776ac0 *inst/doc/mediation-chart.jpg
 dfba0ec6880463cd8c13204c01928bcc *inst/doc/mediation.Rnw
 59fb48d79e56c3a790c2dc3881484e36 *inst/doc/mediation.bbl
-e2d38b5f4d527e8eaa1911f9f4bd160d *inst/doc/mediation.pdf
+a45ebd1f6b7840eb71a9ff1d63ef4c86 *inst/doc/mediation.pdf
 35fa4450495e75d402f3b6a3d4b65d14 *inst/doc/plot-mediate-int.pdf
 9ee3c146e18b42ed0c8236818c9318b8 *inst/doc/plot-mediate.pdf
 2e62b481cb5334a0c8b6a2f2974b7b6a *man/jobs.Rd
