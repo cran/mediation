@@ -1,0 +1,79 @@
+\name{mediate.ced} 
+\alias{mediate.ced} 
+\title{Estimating Average Causal Mediation Effects under the Crossover Encouragement Design} 
+
+\description{ 'mediate.ced' estimates the average causal mediation effects for the crossover encouragement design.
+} 
+
+\usage{
+
+mediate.ced(outcome, med.1, med.2, treat, encourage, data,
+            sims = 1000, conf.level = .95)
+
+}
+
+\arguments{
+
+\item{outcome}{ name of the outcome variable in 'data'. The variable must be binary (factor or numeric 0/1).}
+\item{med.1}{ variable name in 'data' containing the mediator values observed in the first experiment. The variable must be binary (factor or numeric 0/1).}
+\item{med.2}{ variable name in 'data' containing the mediator values observed in the second experiment.}
+\item{treat}{ name of the treatment variable in 'data'. Must be binary (factor or numeric 0/1).}
+\item{encourage}{ name of the encouragement indicator in 'data'. Must be binary (factor or numeric 0/1).}
+\item{data}{ a data frame containing all the above variables.}
+\item{sims}{ number of bootstrap simulations.}
+\item{conf.level}{ level of the returned two-sided confidence intervals.}
+
+}
+
+\details{
+This function estimates the average indirect effects for the pliable units under the crossover encouragement design. The design has two stages. In the first stage the treatment is randomized and the mediator and outcome variables are measured. In the second the treatment is set to the value opposite of first period and a randomly selected group of units receives encouragement to take on the mediator opposite to the values observed in the first stage.  See Imai, Tingley and Yamamoto (2012) for a full description. The confidence intervals are calculated via the nonparametric bootstrap.
+}
+
+
+\value{
+\code{mediate.ced} returns an object of class "\code{mediate.design}", a list that contains the components listed below.
+
+The \code{summary} function can be used to obtain a table of the results.
+
+\item{d0, d1}{point estimates of the average indirect effects under the control and treatment conditions.}
+\item{d0.ci, d1.ci}{confidence intervals for the effects. The confidence level is set at the value specified in 'conf.level'.}
+\item{conf.level}{ confidence level used.}
+\item{sims}{ number of bootstrap simulations.}
+\item{nobs}{ number of observations used.}
+\item{design}{ indicates the design. Always equals "CED".}
+
+}
+
+\references{
+
+Imai, K., Tingley, D. and Yamamoto, T. (2012) Experimental Designs for Identifying Causal Mechanisms. Journal of the Royal Statistical Society, Series A (Statistics in Society)"
+
+Imai, K., Keele, L., Tingley, D. and Yamamoto, T. (2011). Unpacking the Black Box of Causality: Learning about Causal Mechanisms from Experimental and Observational Studies, American Political Science Review, Vol. 105, No. 4 (November), pp. 765-789.
+
+Imai, K., Keele, L. and Yamamoto, T. (2010) Identification, Inference, and Sensitivity Analysis for Causal Mediation Effects, Statistical Science, Vol. 25, No. 1 (February), pp. 51-71.
+
+Imai, K., Keele, L., Tingley, D. and Yamamoto, T. (2009) Causal Mediation Analysis Using R" in Advances in Social Science Research Using R, ed. H. D. Vinod New York: Springer.}
+
+\author{
+Dustin Tingley, Harvard University, \email{dtingley@gov.harvard.edu};
+Teppei Yamamoto, Massachusetts Institute of Technology, \email{teppei@mit.edu}.}
+
+\seealso{\code{\link{mediate}}, \code{\link{summary.mediate.design}}}
+
+\examples{ 
+
+## A typical data frame (DD below) would include:
+##
+##   Outcome variable (Y)
+##   Mediator in the first experiment (natural response to T; M1)
+##   Mediator in the second experiment (given 1-T but encouraged to equal M1; M2)
+##   Treatment in the first experiment (T)
+##   Encouragement in the second experiment (V)
+##   
+##   All variables are binary. Note that the treatment for the second experiment
+##   is not needed because it equals 1-T by design.
+
+\dontrun{ced <- mediate.ced("Y", "M1", "M2", "T", "V", DD, sims = 100)}
+\dontrun{summary(ced)}
+
+}

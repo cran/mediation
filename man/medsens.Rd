@@ -2,7 +2,7 @@
 \alias{medsens} 
 \title{Sensitivity Analysis for Causal Mediation Effects} 
 \description{ 
-'medsens' is used to perform sensitivity analysis on the average causal mediation effects and direct effects for violations of the sequential ignorability assumption.  The function takes output from '\code{mediate}' and calculates the true average causal mediation effects and direct effects for different values of the sensitivity parameter representing the degree of the sequantial ignorability violation.
+'medsens' is used to perform sensitivity analysis on the average causal mediation effects and direct effects for violations of the sequential ignorability assumption.  The function takes output from '\code{mediate}' and calculates the true average causal mediation effects and direct effects for different values of the sensitivity parameter representing the degree of the sequential ignorability violation.
 } 
 \usage{
 
@@ -19,9 +19,9 @@ medsens(x, rho.by = 0.1, sims = 1000, eps = sqrt(.Machine$double.eps),
 \item{effect.type}{ a character string indicating which effect(s) to be analyzed.  Default is "indirect".}
 } 
 
-\details{This is the workhorse function for sensitivity analyses for average causal mediation effects. The sensitivity analysis can be used to assess the robustness of the findings from \code{mediate} to the violation of sequantial ignorability, the crucial identification assumption necessary for the estimates to be valid. The analysis proceeds by quantifying the degree of sequantial ignorability violation as the correlation between the error terms of the mediator and outcome models, and then calculating the true values of the average causal mediation effect for given values of this sensitivity parameter, rho. The original findings are deemed sensitive if the true effects are found to vary widely as function of rho.
+\details{This is the workhorse function for sensitivity analyses for average causal mediation effects. The sensitivity analysis can be used to assess the robustness of the findings from \code{mediate} to the violation of sequential ignorability, the crucial identification assumption necessary for the estimates to be valid. The analysis proceeds by quantifying the degree of sequential ignorability violation as the correlation between the error terms of the mediator and outcome models, and then calculating the true values of the average causal mediation effect for given values of this sensitivity parameter, rho. The original findings are deemed sensitive if the true effects are found to vary widely as function of rho.
 
-The sensitivity analysis is only implemented for the following three model combinations: linear mediator and outcome models (both of class 'lm'), binary probit mediator (fitted via 'glm' with family "binomial" and link "probit") and linear outcome models, and linear mediator and binary probit outcome models.  An error is returned if the 'mediate' object in 'x' is based on other model combinations.  As of version 3.0, the sensitivity analysis can also be conducted with respect to the average direct effect by setting 'effect.type' to "direct" (or "both" if results for the average causal mediation effect are also desired).
+The sensitivity analysis is only implemented for the following three model combinations: linear mediator and outcome models (both of class 'lm'), binary probit mediator (fitted via 'glm' with family "binomial" and link "probit") and linear outcome models, and linear mediator and binary probit outcome models.  In addition, the binary outcome model cannot include a treatment-mediator interaction term. An error is returned if the 'mediate' object in 'x' is based on other model combinations.  As of version 3.0, the sensitivity analysis can also be conducted with respect to the average direct effect by setting 'effect.type' to "direct" (or "both" if results for the average causal mediation effect are also desired).
 
 Users should note that computation can take significant time for \code{medsens}. Setting 'rho.by' to a larger number significantly decreases computational time, as does decreasing 'eps' (for the linear-linear case) or the number of simulations 'sims' (for the binary-linear and linear-binary cases).
 
@@ -55,17 +55,21 @@ Users should note that computation can take significant time for \code{medsens}.
 }
 
 
-\references{Imai, K., Keele, L. and Tingley, D. (2010) A General Approach to Causal Mediation Analysis, Psychological Methods, Vol. 15, No. 4 (December), pp. 309-334.
+\references{
+
+Imai, K., Keele, L., Tingley, D. and Yamamoto, T. (2011). Unpacking the Black Box of Causality: Learning about Causal Mechanisms from Experimental and Observational Studies, American Political Science Review, Vol. 105, No. 4 (November), pp. 765-789.
+
+Imai, K., Keele, L. and Tingley, D. (2010) A General Approach to Causal Mediation Analysis, Psychological Methods, Vol. 15, No. 4 (December), pp. 309-334.
 
 Imai, K., Keele, L. and Yamamoto, T. (2010) Identification, Inference, and Sensitivity Analysis for Causal Mediation Effects, Statistical Science, Vol. 25, No. 1 (February), pp. 51-71.
 
 Imai, K., Keele, L., Tingley, D. and Yamamoto, T. (2009) "Causal Mediation Analysis Using R" in Advances in Social Science Research Using R, ed. H. D. Vinod New York: Springer.} 
 
-\author{Dustin Tingley, Harvard University, \email{dtingley@gov.harvard.edu}, 
-Teppei Yamamoto, Princeton University, \email{tyamamot@princeton.edu}, 
-Jaquilyn Waddell-Boie, Princeton University, \email{jwaddell@princeton.edu},
-Luke Keele, Ohio State University, \email{keele.4@osu.edu}, 
-Kosuke Imai, Princeton University, \email{kimai@princeton.edu} }
+\author{Dustin Tingley, Harvard University, \email{dtingley@gov.harvard.edu}; 
+Teppei Yamamoto, Massachusetts Institute of Technology, \email{teppei@mit.edu}; 
+Jaquilyn Waddell-Boie, Princeton University, \email{jwaddell@princeton.edu};
+Luke Keele, Penn State University, \email{ljk20@psu.edu}; 
+Kosuke Imai, Princeton University, \email{kimai@princeton.edu}. }
  
 \seealso{\code{\link{mediate}}, \code{\link{summary.medsens}}, \code{\link{plot.medsens}}.}
 
