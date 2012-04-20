@@ -14,10 +14,10 @@ mediate.ced(outcome, med.1, med.2, treat, encourage, data,
 
 \arguments{
 
-\item{outcome}{ name of the outcome variable in 'data'. The variable must be binary (factor or numeric 0/1).}
+\item{outcome}{ variable name in 'data' containing the outcome values observed in the second experiment. The variable must be binary (factor or numeric 0/1).}
 \item{med.1}{ variable name in 'data' containing the mediator values observed in the first experiment. The variable must be binary (factor or numeric 0/1).}
 \item{med.2}{ variable name in 'data' containing the mediator values observed in the second experiment.}
-\item{treat}{ name of the treatment variable in 'data'. Must be binary (factor or numeric 0/1).}
+\item{treat}{ variable name in 'data' containing the treatment values in the first experiment. Must be binary (factor or numeric 0/1).}
 \item{encourage}{ name of the encouragement indicator in 'data'. Must be binary (factor or numeric 0/1).}
 \item{data}{ a data frame containing all the above variables.}
 \item{sims}{ number of bootstrap simulations.}
@@ -27,6 +27,8 @@ mediate.ced(outcome, med.1, med.2, treat, encourage, data,
 
 \details{
 This function estimates the average indirect effects for the pliable units under the crossover encouragement design. The design has two stages. In the first stage the treatment is randomized and the mediator and outcome variables are measured. In the second the treatment is set to the value opposite of first period and a randomly selected group of units receives encouragement to take on the mediator opposite to the values observed in the first stage.  See Imai, Tingley and Yamamoto (2012) for a full description. The confidence intervals are calculated via the nonparametric bootstrap.
+
+Note that \code{outcome} should be the observed responses in the \emph{second} stage whereas \code{treat} should be the values in the \emph{first} stage.
 }
 
 
@@ -62,18 +64,9 @@ Teppei Yamamoto, Massachusetts Institute of Technology, \email{teppei@mit.edu}.}
 
 \examples{ 
 
-## A typical data frame (DD below) would include:
-##
-##   Outcome variable (Y)
-##   Mediator in the first experiment (natural response to T; M1)
-##   Mediator in the second experiment (given 1-T but encouraged to equal M1; M2)
-##   Treatment in the first experiment (T)
-##   Encouragement in the second experiment (V)
-##   
-##   All variables are binary. Note that the treatment for the second experiment
-##   is not needed because it equals 1-T by design.
+data(CEDdata)
 
-\dontrun{ced <- mediate.ced("Y", "M1", "M2", "T", "V", DD, sims = 100)}
-\dontrun{summary(ced)}
+res <- mediate.ced("Y2", "M1", "M2", "T1", "Z", CEDdata, sims = 100)
+summary(res)
 
 }

@@ -114,57 +114,62 @@ mediate.ced <- function(outcome, med.1, med.2, treat, encourage, data,
         d <- data[index,]
 
         #Atmv
-        A111 <- sum(d$M1==1 & d$T==1 & d$M2==1 & d$V==1)/sum(d$T==1 & d$M2==1 & d$V==1)
-        A011 <- sum(d$M1==1 & d$T==0 & d$M2==1 & d$V==1)/sum(d$T==0 & d$M2==1 & d$V==1)
-        A101 <- sum(d$M1==1 & d$T==1 & d$M2==0 & d$V==1)/sum(d$T==1 & d$M2==0 & d$V==1)
-        A001 <- sum(d$M1==1 & d$T==0 & d$M2==0 & d$V==1)/sum(d$T==0 & d$M2==0 & d$V==1)
+        A111 <- sum(d$M2==1 & d$T==1 & d$M1==1 & d$V==1)/sum(d$T==1 & d$M1==1 & d$V==1)
+        A011 <- sum(d$M2==1 & d$T==0 & d$M1==1 & d$V==1)/sum(d$T==0 & d$M1==1 & d$V==1)
+        A101 <- sum(d$M2==1 & d$T==1 & d$M1==0 & d$V==1)/sum(d$T==1 & d$M1==0 & d$V==1)
+        A001 <- sum(d$M2==1 & d$T==0 & d$M1==0 & d$V==1)/sum(d$T==0 & d$M1==0 & d$V==1)
 
-        A110 <- sum(d$M1==1 & d$T==1 & d$M2==1 & d$V==0)/sum(d$T==1 & d$M2==1 & d$V==0)
-        A010 <- sum(d$M1==1 & d$T==0 & d$M2==1 & d$V==0)/sum(d$T==0 & d$M2==1 & d$V==0)
-        A100 <- sum(d$M1==1 & d$T==1 & d$M2==0 & d$V==0)/sum(d$T==1 & d$M2==0 & d$V==0)
-        A000 <- sum(d$M1==1 & d$T==0 & d$M2==0 & d$V==0)/sum(d$T==0 & d$M2==0 & d$V==0)
+        A110 <- sum(d$M2==1 & d$T==1 & d$M1==1 & d$V==0)/sum(d$T==1 & d$M1==1 & d$V==0)
+        A010 <- sum(d$M2==1 & d$T==0 & d$M1==1 & d$V==0)/sum(d$T==0 & d$M1==1 & d$V==0)
+        A100 <- sum(d$M2==1 & d$T==1 & d$M1==0 & d$V==0)/sum(d$T==1 & d$M1==0 & d$V==0)
+        A000 <- sum(d$M2==1 & d$T==0 & d$M1==0 & d$V==0)/sum(d$T==0 & d$M1==0 & d$V==0)
 
-        #Gtm1vm2
-        G1111 <- mean(d$Y2[d$T==1 & d$M1==1 & d$V==1 & d$M2==1])
-        G0111 <- mean(d$Y2[d$T==0 & d$M1==1 & d$V==1 & d$M2==1])
-        G1011 <- mean(d$Y2[d$T==1 & d$M1==0 & d$V==1 & d$M2==1])
-        G0011 <- mean(d$Y2[d$T==0 & d$M1==0 & d$V==1 & d$M2==1])
+        #Gtm1m2
+        G1111 <- mean(d$Y2[d$T==1 & d$M1==1 & d$M2==1 & d$V==1])
+        G0111 <- mean(d$Y2[d$T==0 & d$M1==1 & d$M2==1 & d$V==1])
+        G1011 <- mean(d$Y2[d$T==1 & d$M1==0 & d$M2==1 & d$V==1])
+        G0011 <- mean(d$Y2[d$T==0 & d$M1==0 & d$M2==1 & d$V==1])
 
-        G1101 <- mean(d$Y2[d$T==1 & d$M1==1 & d$V==0 & d$M2==1])
-        G0101 <- mean(d$Y2[d$T==0 & d$M1==1 & d$V==0 & d$M2==1])
-        G1001 <- mean(d$Y2[d$T==1 & d$M1==0 & d$V==0 & d$M2==1])
-        G0001 <- mean(d$Y2[d$T==0 & d$M1==0 & d$V==0 & d$M2==1])
+        G1101 <- mean(d$Y2[d$T==1 & d$M1==1 & d$M2==0 & d$V==1])
+        G0101 <- mean(d$Y2[d$T==0 & d$M1==1 & d$M2==0 & d$V==1])
+        G1001 <- mean(d$Y2[d$T==1 & d$M1==0 & d$M2==0 & d$V==1])
+        G0001 <- mean(d$Y2[d$T==0 & d$M1==0 & d$M2==0 & d$V==1])
 
-        G1110 <- mean(d$Y2[d$T==1 & d$M1==1 & d$V==1 & d$M2==0])
-        G0110 <- mean(d$Y2[d$T==0 & d$M1==1 & d$V==1 & d$M2==0])
-        G1010 <- mean(d$Y2[d$T==1 & d$M1==0 & d$V==1 & d$M2==0])
-        G0010 <- mean(d$Y2[d$T==0 & d$M1==0 & d$V==1 & d$M2==0])
+        G1110 <- mean(d$Y2[d$T==1 & d$M1==1 & d$M2==1 & d$V==0])
+        G0110 <- mean(d$Y2[d$T==0 & d$M1==1 & d$M2==1 & d$V==0])
+        G1010 <- mean(d$Y2[d$T==1 & d$M1==0 & d$M2==1 & d$V==0])
+        G0010 <- mean(d$Y2[d$T==0 & d$M1==0 & d$M2==1 & d$V==0])
 
-        G1100 <- mean(d$Y2[d$T==1 & d$M1==1 & d$V==0 & d$M2==0])
-        G0100 <- mean(d$Y2[d$T==0 & d$M1==1 & d$V==0 & d$M2==0])
-        G1000 <- mean(d$Y2[d$T==1 & d$M1==0 & d$V==0 & d$M2==0])
-        G0000 <- mean(d$Y2[d$T==0 & d$M1==0 & d$V==0 & d$M2==0])
+        G1100 <- mean(d$Y2[d$T==1 & d$M1==1 & d$M2==0 & d$V==0])
+        G0100 <- mean(d$Y2[d$T==0 & d$M1==1 & d$M2==0 & d$V==0])
+        G1000 <- mean(d$Y2[d$T==1 & d$M1==0 & d$M2==0 & d$V==0])
+        G0000 <- mean(d$Y2[d$T==0 & d$M1==0 & d$M2==0 & d$V==0])
 
-        temp11 <- sum(d$T==1 & d$M1==1)/sum(d$T==1|d$T==0)
-        temp01 <- sum(d$T==0 & d$M1==1)/sum(d$T==1|d$T==0)
-        temp10 <- sum(d$T==1 & d$M1==0)/sum(d$T==1|d$T==0)
-        temp00 <- sum(d$T==0 & d$M1==0)/sum(d$T==1|d$T==0)
+        Q11 <- sum(d$T==1 & d$M1==1)/sum(d$T==1)
+        Q10 <- sum(d$T==1 & d$M1==0)/sum(d$T==1)
+        Q01 <- sum(d$T==0 & d$M1==1)/sum(d$T==0)
+        Q00 <- sum(d$T==0 & d$M1==0)/sum(d$T==0)
+        B11 <- Q11/((A100 - A101)*Q10 + (A111 - A110)*Q11)
+        B10 <- Q10/((A100 - A101)*Q10 + (A111 - A110)*Q11)
+        B01 <- Q01/((A000 - A001)*Q00 + (A011 - A010)*Q01)
+        B00 <- Q00/((A000 - A001)*Q00 + (A011 - A010)*Q01)
 
-        PH1 <- (A111-A110)*temp11 / ((A111-A110)*temp11 + (1-2*A101)*temp10)
-        PH0 <- (A011-A010)*temp01 / ((A011-A010)*temp01 + (1-2*A001)*temp00)
-		
 		if(b == sims + 1){
-        	d.p.c.mu <- (PH1/(A111-A110)) * (G1111+G1110-G1100-G1110*A111-G1101*A110) +
-                        ((1-PH1)/(A100-A101)) * (G1010-G1001-G1000+G1000*A100+G1011*A101)
-        	d.p.t.mu <- (PH0/(A010-A011)) * (G0111+G0110-G0100-G0110*A011-G0101*A010) +
-                        ((1-PH0)/(A001-A000)) * (G0010-G0001-G0000+G0000*A000+G0011*A001)
+            d.p.c.mu <- (-A110*G1110 - (1-A110)*G1100 + A111*G1111 + (1-A111)*G1101) * B11 +
+                            (-A100*G1010 - (1-A100)*G1000 + A101*G1011 + (1-A101)*G1001) * B10
+            d.p.t.mu <- (A000*G0010 + (1-A000)*G0000 - A001*G0011 - (1-A001)*G0001) * B00 +
+                            (A010*G0110 + (1-A010)*G0100 - A011*G0111 - (1-A011)*G0101) * B01
 		} else {
-        	d.p.c[b] <- (PH1/(A111-A110)) * (G1111+G1110-G1100-G1110*A111-G1101*A110) +
-                        ((1-PH1)/(A100-A101)) * (G1010-G1001-G1000+G1000*A100+G1011*A101)
-        	d.p.t[b] <- (PH0/(A010-A011)) * (G0111+G0110-G0100-G0110*A011-G0101*A010) +
-                        ((1-PH0)/(A001-A000)) * (G0010-G0001-G0000+G0000*A000+G0011*A001)
+            d.p.c[b] <- (-A110*G1110 - (1-A110)*G1100 + A111*G1111 + (1-A111)*G1101) * B11 +
+                            (-A100*G1010 - (1-A100)*G1000 + A101*G1011 + (1-A101)*G1001) * B10
+            d.p.t[b] <- (A000*G0010 + (1-A000)*G0000 - A001*G0011 - (1-A001)*G0001) * B00 +
+                            (A010*G0110 + (1-A010)*G0100 - A011*G0111 - (1-A011)*G0101) * B01
 		}
     }#bootstraploop
+    
+    if(is.nan(d.p.c.mu) | is.nan(d.p.t.mu)){
+    	warning("NaN produced; distribution of observed variables may be too sparse")
+    }
 
     d.p.c[d.p.c==-Inf] <- NA
     d.p.t[d.p.t==-Inf] <- NA
