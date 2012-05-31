@@ -1,6 +1,6 @@
 Package: mediation
-Version: 4.0.1
-Date: 2012-4-20
+Version: 4.1
+Date: 2012-5-31
 Title: R Package for Causal Mediation Analysis
 Author: Dustin Tingley <dtingley@gov.harvard.edu>, Teppei Yamamoto
         <teppei@mit.edu>, Luke Keele <keele.4@polisci.osu.edu>, Kosuke
@@ -18,6 +18,6 @@ Description: mediation is a publicly available R package that allows
 LazyLoad: yes
 LazyData: yes
 License: GPL (>= 2)
-Packaged: 2012-04-20 01:37:54 UTC; teppei
+Packaged: 2012-05-31 22:05:49 UTC; teppei
 Repository: CRAN
-Date/Publication: 2012-04-20 04:55:40
+Date/Publication: 2012-06-03 17:27:31
