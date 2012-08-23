@@ -61,6 +61,8 @@ The quasi-Bayesian approximation (King et al. 2000) cannot be used if 'model.m' 
 The 'control' argument must be provided when 'gam' is used for the outcome model and user wants to allow ACME and ADE to vary as functions of the treatment (i.e., to relax the "no interaction" assumption). Note that the outcome model must be fitted via package \code{\link{mgcv}} with appropriate formula using \code{\link{s}} constructs (see Imai et al. 2009 in the references). For other model types, the interaction can be allowed by including an interaction term between \eqn{T} and \eqn{M} in the linear predictor of the outcome model. As of version 3.0, the 'INT' argument is deprecated and the existence of the interaction term is automatically detected (except for 'gam' outcome models).
 
 When the treatment variable is continuous or a factor with multiple levels, user must specify the values of \eqn{t_1}{t1} and \eqn{t_0}{t0} using the 'treat.value' and 'control.value' arguments, respectively.  The value of \eqn{t} in the above expressions is set to \eqn{t_0}{t0} for 'd0', 'z0', etc. and to \eqn{t_1}{t1} for 'd1', 'z1', etc.
+
+When using the cluster option, there can be no missing values for the variable being clustered on. Users must pre-process their data to remove observations with missing values of the clustering variable.
 }
 
 
@@ -135,9 +137,11 @@ contcont <- mediate(b, c, sims=50, treat="treat", mediator="job_seek")
 summary(contcont)
 plot(contcont)
 
+\dontrun{
 # Estimation via nonparametric bootstrap
 contcont.boot <- mediate(b, c, boot=TRUE, sims=50, treat="treat", mediator="job_seek")
 summary(contcont.boot)
+}
 
 # Allowing treatment-mediator interaction
 d <- lm(depress2 ~ treat + job_seek + treat:job_seek + econ_hard + sex + age, data=jobs)
@@ -166,6 +170,7 @@ summary(contcont.cont)
 ######################################################
 # Example 2: Binary Outcome and Ordered Mediator
 ######################################################
+\dontrun{
 b.ord <- polr(job_disc ~ treat + econ_hard + sex + age, data=jobs,
             method="probit", Hess=TRUE)
 d.bin <- glm(work1 ~ treat * job_disc + econ_hard + sex + age, data=jobs,
@@ -178,6 +183,7 @@ require(sandwich)
 ordbin.rb <- mediate(b.ord, d.bin, sims=50, treat="treat", mediator="job_disc",
             robustSE=TRUE)
 summary(ordbin.rb)
+}
 
 ######################################################
 # Example 3: Quantile Causal Mediation Effect
@@ -191,6 +197,7 @@ summary(contquan)
 ######################################################
 # Example 4: GAM Outcome
 ######################################################
+\dontrun{
 require(mgcv)
 c.gam <- gam(depress2 ~ treat + s(job_seek, bs="cr") + 
             econ_hard + sex + age, data=jobs)
@@ -204,5 +211,6 @@ d.gam <- gam(depress2 ~ treat + s(job_seek, by = treat) +
 contgam.int <- mediate(b, d.gam, sims=10, treat="treat", mediator="job_seek",
     control = "control", boot=TRUE)
 summary(contgam.int)
+}
 
 } 

@@ -1,923 +1,0 @@
-setwd("..")
-library(MASS)#
-library(Matrix)#
-library(VGAM)      # for tobit#
-library(mgcv)      # for GAMs#
-library(quantreg)  # for quantile regression#
-library(sandwich)  # for vcovHC
-##################################################
-source("../mediation/R/mediate.R")#
-source("../mediation/R/mediations.R")#
-source("../mediation/R/medsens.R")  # Uncomment when testing sens analysis
-##################################################
-load("../mediation/data/jobs.RData")#
-    # Binary treatment: treat#
-    # Continuous mediator: job_seek#
-    # Continuous outcome: depress2#
-    # Binary outcome: work1#
-#
-# Create ordered outcome for testing purpose#
-depress_ord <- round(jobs$depress2)#
-jobs$depress_ord <- factor(ifelse(depress_ord > 2, 3, depress_ord))#
-#
-# Create continuous treatment for testing purpose#
-jobs$treat_cont <- jobs$treat + rnorm(nrow(jobs))#
-#
-# Create count outcome and mediator for testing purpose#
-jobs$depress_count <- as.integer(jobs$depress_ord)#
-jobs$job_count <- as.integer(jobs$job_disc)#
-jobs$depress_countrat <- jobs$depress_count/3#
-jobs$job_countrat <- jobs$job_count/4  # count ratio for binomial#
-#
-# Create censored outcome for testing purpose#
-jobs$depress_cens <- ifelse(jobs$depress2 > 2.5, 2.5, jobs$depress2)#
-#
-CigData <- read.csv("../analysis/MacKinnon2007/MacKinnonCigUsage.csv", header=TRUE)#
-    # Binary treatment: treatment#
-    # Ordered mediator: intent#
-    # Binary outcome: usage#
-    #
-# Prepare variables for tobit, quantile regression, and non-binary treatment#
-model.y <- glm(usage ~ treatment + intent, data=CigData, family=binomial(link=probit))#
-model.m <- lm(intent ~ treatment, data=CigData)#
-#
-ALPHA.2 <- model.m$coefficients[1]#
-BETA.2 <- model.m$coefficients[2]#
-GAMMA <- model.y$coefficients[3]#
-BETA.3 <- model.y$coefficients[2]#
-ALPHA.3 <- model.y$coefficients[1]#
-N <- nrow(CigData)#
-SIGMA.2.SQ <- sd(model.m$residuals)#
-Ttt <- CigData$treatment#
-T.cont<-rnorm(nrow(CigData),sd=5)#
-T.cont[Ttt==1] <- T.cont[Ttt==1] + 1#
-#
-M.latent <- ALPHA.2 + BETA.2*Ttt  + rnorm(N)#
-Y.latent <-  ALPHA.3 + BETA.3*Ttt + GAMMA*M.latent + rnorm(N)#
-#
-#Outcome#
-Y.ord<-Y.dich <- Y.cens <- Y.latent #censored#
-cens.up <- 1#
-cens.lo <- 0#
-Y.cens[Y.latent <  cens.lo] <- cens.lo#
-Y.cens[Y.latent >= cens.up] <- cens.up#
-#
-#binary#
-Y.dich [Y.latent <  0] <- 0#
-Y.dich [Y.latent >= 0] <- 1#
-#
-Y.ord[Y.ord<0]<-0 #ordered#
-Y.ord[Y.ord>3]<-3#
-Y.ord<-factor(round(Y.ord))#
-#
-#Mediator#
-M.ord<-M.dich <- M.cens <- M.latent #censored#
-cens.up <- 1#
-cens.lo <- 0#
-M.cens[M.latent <  cens.lo] <- cens.lo#
-M.cens[M.latent >= cens.up] <- cens.up#
-#
-#binary#
-M.dich [M.latent <  0] <- 0#
-M.dich [M.latent >= 0] <- 1#
-#
-M.ord[M.ord<0]<-0 #ordered#
-M.ord[M.ord>3]<-3#
-M.ord<-factor(round(M.ord))#
-#
-Data <- data.frame(M=M.latent,M.ord=as.factor(M.ord), M.dich, M.cens,Y=Y.latent,Y.ord=as.factor(Y.ord),Y.dich,Y.cens,T=Ttt,T.cont)#
-#
-## Find the quantile of M that corresponds with the mean of M. This will let us#
-## check the quantile regression data.#
-#meanM <- mean(M)#
-#quan <- .01#
-#diff <- 10#
-#while(diff>.0005) {#
-#    q.temp <- quantile(M, quan)#
-#    diff <- meanM-q.temp#
-#    quan <- quan+.001#
-#}#
-#
-#
-#################################################################################
-#################################################################################
-### 2. Testing#
-#################################################################################
-#################################################################################
-#
-#sink("mediation-test-results.txt")#
-#
-#####################################################################
-# A. Continuous Outcomes#
-#####################################################################
-#
-##################################################
-# Continuous Outcome and Continuous Mediator#
-##################################################
-b <- lm(job_seek ~ treat + econ_hard + sex + age + nonwhite, data=jobs)#
-c <- lm(depress2 ~ treat + job_seek + econ_hard + sex + age + nonwhite, data=jobs)#
-d <- lm(depress2 ~ treat + job_seek + treat:job_seek + econ_hard + sex + age + nonwhite, data=jobs)#
-#
-# Base case#
-set.seed(1)#
-contcont <- mediate(b, c, sims=10, treat="treat", mediator="job_seek")#
-summary(contcont)#
-#
-# Argument partial matching#
-set.seed(1)#
-contcont.part <- mediate(b, c, s=10, treat="treat", med="job_seek")#
-summary(contcont.part)#
-#
-# boot = TRUE#
-set.seed(1)#
-contcont.boot <- mediate(b, c, boot=TRUE, sims=10, treat="treat", mediator="job_seek")#
-summary(contcont.boot)#
-#
-# Interaction term between treatment and mediator#
-set.seed(1)#
-contcont.int <- mediate(b, d, sims=10, treat="treat", mediator="job_seek")#
-summary(contcont.int)#
-#
-# INT (depricated) used #
-set.seed(1)#
-contcont.INT <- mediate(b, d, sims=10, treat="treat", mediator="job_seek", INT=TRUE)#
-summary(contcont.INT)#
-#
-# Change confidence level#
-set.seed(1)#
-contcont.50 <- mediate(b, c, sims=10, treat="treat", mediator="job_seek", conf=.5)#
-summary(contcont.50)#
-#
-# Omit simulation draws from output#
-set.seed(1)#
-contcont.short <- mediate(b, c, sims=10, treat="treat", mediator="job_seek", long=F)#
-summary(contcont.short)#
-contcont.short$d0.sim  # NULL#
-contcont$d0.sim[1]  # 1st draw#
-#
-# What if "control" is (inappropriately) given?#
-set.seed(1)#
-contcont.control <- mediate(b, c, sims=10, treat="treat", mediator="job_seek", #
-                        control="control")#
-# Check if get appropriate warning#
-summary(contcont.control)#
-#
-# Factor treatment#
-set.seed(1)#
-contcont.factor <- mediate(b, c, sims=10, treat="nonwhite", mediator="job_seek",#
-    treat.value = "non.white1", control.value = "white0")#
-contcont.factor <- mediate(b, c, sims=10, treat="nonwhite", mediator="job_seek",#
-    treat.value = "white0", control.value = "non.white1")#
-contcont.factor <- mediate(b, c, sims=10, treat="nonwhite", mediator="job_seek")#
-contcont.factor <- mediate(b, c, sims=10, treat="nonwhite", mediator="job_seek",#
-    treat.value = "non.white1", control.value = "white0", boot = TRUE)#
-contcont.factor <- mediate(b, c, sims=10, treat="nonwhite", mediator="job_seek",#
-    treat.value = "white0", control.value = "non.white1", boot = TRUE)#
-contcont.factor <- mediate(b, c, sims=10, treat="nonwhite", mediator="job_seek",#
-    boot = TRUE)#
-summary(contcont.factor)
-source("../mediation/R/mediate.R")#
-source("../mediation/R/mediations.R")#
-source("../mediation/R/medsens.R")  # Uncomment when testing sens analysis
-set.seed(1)#
-contcont.INT <- mediate(b, d, sims=10, treat="treat", mediator="job_seek", INT=TRUE)#
-summary(contcont.INT)
-help(sink)
-help(model.frame)
-model.frame(a)
-model.frame(b)
-source("../mediation/R/mediate.R")#
-source("../mediation/R/mediations.R")#
-source("../mediation/R/medsens.R")  # Uncomment when testing sens analysis
-set.seed(1)#
-contcont.int <- mediate(b, d, sims=10, treat="treat", mediator="job_seek")#
-summary(contcont.int)
-set.seed(1)#
-contcont.int <- mediate(b, d, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(sex = 1))#
-summary(contcont.int)
-b <- lm(job_seek ~ treat + econ_hard + sex + age + nonwhite, data=jobs)#
-c <- lm(depress2 ~ treat + job_seek + econ_hard + sex + age + nonwhite, data=jobs)#
-d <- lm(depress2 ~ treat + job_seek + treat:job_seek + econ_hard + sex + age + nonwhite, data=jobs)#
-b.int <- lm(job_seek ~ treat*sex + econ_hard + age + nonwhite, data = jobs)#
-c.int <- lm(depress2 ~ treat*sex + job_seek + econ_hard + age + nonwhite, data=jobs)#
-d.int <- lm(depress2 ~ treat*sex + job_seek + treat:job_seek + econ_hard + age + nonwhite, data=jobs)
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek")#
-summary(contcont.int)
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(sex = 1))#
-summary(contcont.int)
-# Interaction term between treatment and mediator with X values#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(sex = 0))#
-summary(contcont.int)
-source("../mediation/R/mediate.R")
-# Interaction term between treatment and mediator#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek")#
-summary(contcont.int)
-# Interaction term between treatment and mediator with X values#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(sex = 0))#
-summary(contcont.int)
-debug(mediate)
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(sex = 0))
-head(m.data)
-head(m.data)
-covariates
-head(model.frame(model.m))
-head(model.frame(model.m, list(sex = 0)))
-head(model.frame(model.m), list(sex = 0)))
-head(model.frame(terms(model.m), list(sex = 0)))
-head(model.frame(terms(model.m)))
-terms(model.m)
-covariates
-head(model.frame(delete.response(terms(model.m))))
-model.m
-model.matrix(terms(model.m))
-model.formula(terms(model.m))
-model.formula(terms(model.m), xlev = model.m$xlevels)
-model.frame(terms(model.m), xlev = model.m$xlevels)
-model.m
-terms(model.m)
-model.frame(terms(model.m))
-model.frame(model.m)
-model.frame(formula(model.m))
-head(jobs)
-model.m
-formula(model.m)
-attr(formula(model.m),"environment")
-attributes(formula(model.m))
-formula(b)
-attributes(b)
-attributes(formula(b))
-model.frame(formula(b))
-q
-Q
-model.frame(formula(b))
-model.frame(b)
-attributes(b)
-attributes(formula(b))
-predict(lm)
-predict(b)
-predict(b, list(age = 1))
-help(predict)
-newd <- model.frame(b)
-b$age <- 0
-newd$age <- 0
-predict(b, newd)
-head(newd)
-nn <- list(age = 20, sex = c(rep(1, 30), rep(0, nrow(newd)-30) ))))
-nn <- list(age = 20, sex = c(rep(1, 30), rep(0, nrow(newd)-30) )))
-nn <- list(age = 20, sex = c(rep(1, 30), rep(0, nrow(newd)-30) ))
-nn
-library(Zelig)
-library(Zelig)
-sim
-setx
-setx.default
-Zelig:::setx.default
-help(setx)
-newd$job_seek
-head(newd)
-nn
-names(nn)
-names(nn)[1]
-newd$names(nn)[1]
-newd[,"names(nn)[1]"]
-newd[,names(nn)[1]]
-newd[,names(nn)[1]] <- nn[[1]]
-newd[,names(nn)[1]]
-newd[,names(nn)[2]] <- nn[[2]]
-newd[,names(nn)[2]]
-length(nn)
-newd[[1]]
-newd[[2]]
-head(newd)
-names(newd)[1]
-names(newd)[4]
-source("../mediation/R/mediate.R")
-b <- lm(job_seek ~ treat + econ_hard + sex + age + nonwhite, data=jobs)#
-c <- lm(depress2 ~ treat + job_seek + econ_hard + sex + age + nonwhite, data=jobs)#
-d <- lm(depress2 ~ treat + job_seek + treat:job_seek + econ_hard + sex + age + nonwhite, data=jobs)#
-b.int <- lm(job_seek ~ treat*sex + econ_hard + age + nonwhite, data = jobs)#
-c.int <- lm(depress2 ~ treat*sex + job_seek + econ_hard + age + nonwhite, data=jobs)#
-d.int <- lm(depress2 ~ treat*sex + job_seek + treat:job_seek + econ_hard + age + nonwhite, data=jobs)#
-#
-# Base case#
-set.seed(1)#
-contcont <- mediate(b, c, sims=10, treat="treat", mediator="job_seek")#
-summary(contcont)#
-#
-# Argument partial matching#
-set.seed(1)#
-contcont.part <- mediate(b, c, s=10, treat="treat", med="job_seek")#
-summary(contcont.part)
-# Interaction term between treatment and mediator#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek")#
-summary(contcont.int)
-# Interaction term between treatment and mediator with X values#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(sex = 0))#
-summary(contcont.int)
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(sex = 1))#
-summary(contcont.int)
-head(jobs)
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(sex = 1, nonwhite = "non.white1"))#
-summary(contcont.int)
-b.int <- lm(job_seek ~ treat*sex + treat*nonwhite + econ_hard + age, data = jobs)#
-c.int <- lm(depress2 ~ treat*sex + treat*nonwhite + job_seek + econ_hard + age, data=jobs)
-# Interaction term between treatment and mediator with X values#
-set.seed(1)#
-contcont.int <- mediate(b.int, c.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(sex = 1, nonwhite = "non.white1"))#
-summary(contcont.int)
-b.int
-c.int
-# Interaction term between treatment and mediator with X values#
-set.seed(1)#
-contcont.int <- mediate(b.int, c.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(sex = 1, nonwhite = "non.white1"))#
-summary(contcont.int)
-set.seed(1)#
-contcont.int <- mediate(b.int, c.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(sex = 1, nonwhite = "white0"))#
-summary(contcont.int)
-b.int <- lm(job_seek ~ treat*sex + treat*nonwhite + econ_hard + age, data = jobs)#
-c.int <- lm(depress2 ~ treat*sex + treat*nonwhite + job_seek + econ_hard + age, data=jobs)#
-d.int <- lm(depress2 ~ treat*sex + treat*nonwhite + job_seek + treat:job_seek + econ_hard + age, data=jobs)
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(sex = 1, nonwhite = "white0"))#
-summary(contcont.int)
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek")#
-summary(contcont.int)
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(sex = 1, nonwhite = "non.white1"))#
-summary(contcont.int)
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(sex = 1, nonwhite = "white0"))#
-summary(contcont.int)
-debug(mediate)
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(sex = 1, nonwhite = "white0"))
-ls()
-covariates
-head(y.data)
-ls()
-ls()
-ls()
-head(pred.data.t)
-head(pred.data.c)
-head(pred.data.c)
-head(pred.data.c)
-head(pred.data.t)
-source("../mediation/R/mediate.R")
-undebug(mediate)
-# Interaction term between treatment and mediator with X values#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(sex = 1, nonwhite = "white0"))#
-summary(contcont.int)
-ls()
-ls()
-newd
-is.factor(newd[,"white"])
-is.factor(newd[,"nonwhite"])
-is.factor(newd[,"nonwhite"])
-nn
-nn[1]
-nn[[1]]
-source("../mediation/R/mediate.R")
-# Interaction term between treatment and mediator#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek")#
-summary(contcont.int)
-# Interaction term between treatment and mediator with X values#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(sex = 1, nonwhite = "white0"))#
-summary(contcont.int)
-is.factor(jobs[,"white"])
-is.factor(jobs[,"nonwhite"])
-source("../mediation/R/mediate.R")#
-source("../mediation/R/mediations.R")#
-source("../mediation/R/medsens.R")  # Uncomment when testing sens analysis
-# Interaction term between treatment and mediator with X values#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(sex = 1, nonwhite = "white0"))#
-summary(contcont.int)
-source("../mediation/R/mediate.R")
-# Interaction term between treatment and mediator with X values#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(sex = 1, nonwhite = "white0"))#
-summary(contcont.int)
-head(jobs)
-jobs1 <- jobs
-jobs1$nonwhite <- as.character(jobs$nonwhite)
-head(jobs1)
-is.factor(jobs1$nonwhite)
-b.int <- lm(job_seek ~ treat*sex + treat*nonwhite + econ_hard + age, data = jobs1)#
-c.int <- lm(depress2 ~ treat*sex + treat*nonwhite + job_seek + econ_hard + age, data=jobs1)#
-d.int <- lm(depress2 ~ treat*sex + treat*nonwhite + job_seek + treat:job_seek + econ_hard + age, data=jobs1)
-# Interaction term between treatment and mediator with X values#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(sex = 1, nonwhite = "white0"))#
-summary(contcont.int)
-model.matrix.default
-b <- lm(job_seek ~ treat + econ_hard + sex + age + nonwhite, data=jobs)#
-c <- lm(depress2 ~ treat + job_seek + econ_hard + sex + age + nonwhite, data=jobs)#
-d <- lm(depress2 ~ treat + job_seek + treat:job_seek + econ_hard + sex + age + nonwhite, data=jobs)#
-b.int <- lm(job_seek ~ treat*sex + treat*nonwhite + econ_hard + age, data = jobs)#
-c.int <- lm(depress2 ~ treat*sex + treat*nonwhite + job_seek + econ_hard + age, data=jobs)#
-d.int <- lm(depress2 ~ treat*sex + treat*nonwhite + job_seek + treat:job_seek + econ_hard + age, data=jobs)#
-#
-# Base case#
-set.seed(1)#
-contcont <- mediate(b, c, sims=10, treat="treat", mediator="job_seek")#
-summary(contcont)#
-#
-# Argument partial matching#
-set.seed(1)#
-contcont.part <- mediate(b, c, s=10, treat="treat", med="job_seek")#
-summary(contcont.part)#
-#
-# boot = TRUE#
-set.seed(1)#
-contcont.boot <- mediate(b, c, boot=TRUE, sims=10, treat="treat", mediator="job_seek")#
-summary(contcont.boot)#
-#
-# Interaction term between treatment and mediator#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek")#
-summary(contcont.int)#
-#
-# Interaction term between treatment and mediator with X values#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(sex = 1, nonwhite = "white0"))#
-summary(contcont.int)
-# Interaction term between treatment and mediator with X values#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(sex = 0, nonwhite = "white0"))#
-summary(contcont.int)
-# Interaction term between treatment and mediator with X values#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(sex = 0, nonwhite = "non.white1"))#
-summary(contcont.int)
-# Interaction term between treatment and mediator with X values#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(sex = 1, nonwhite = "non.white1"))#
-summary(contcont.int)
-# Interaction term between treatment and mediator#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek")#
-summary(contcont.int)
-# Base case#
-set.seed(1)#
-contcont <- mediate(b, c, sims=10, treat="treat", mediator="job_seek", covar=list(sex=1))#
-summary(contcont)
-# Base case#
-set.seed(1)#
-contcont <- mediate(b, c, sims=10, treat="treat", mediator="job_seek")#
-summary(contcont)
-# Interaction term between treatment and mediator#
-set.seed(1)#
-contcont.int <- mediate(b, d, sims=10, treat="treat", mediator="job_seek")#
-summary(contcont.int)#
-#
-# Interaction term between treatment and mediator with X values#
-set.seed(1)#
-contcont.int <- mediate(b, d, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(sex = 1, nonwhite = "non.white1"))#
-summary(contcont.int)
-# Interaction term between treatment and mediator#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek")#
-summary(contcont.int)#
-#
-# Interaction term between treatment and mediator with X values#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(sex = 1, age = 20))#
-summary(contcont.int)
-# Interaction term between treatment and mediator with X values#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(sex = 1, age = 30))#
-summary(contcont.int)
-b.int <- lm(job_seek ~ treat*age + econ_hard + sex + nonwhite, data = jobs)#
-c.int <- lm(depress2 ~ treat*age + job_seek + econ_hard + sex + nonwhite, data=jobs)#
-d.int <- lm(depress2 ~ treat*age + job_seek + treat:job_seek + econ_hard + sex + nonwhite, data=jobs)
-# Interaction term between treatment and mediator with X values#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(age = 30))#
-summary(contcont.int)
-# Interaction term between treatment and mediator#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek")#
-summary(contcont.int)
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(age = 40))#
-summary(contcont.int)
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(age = 50))#
-summary(contcont.int)
-# Interaction term between treatment and mediator with X values#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(age = 60))#
-summary(contcont.int)
-# Interaction term between treatment and mediator with X values#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(age = 70))#
-summary(contcont.int)
-# Interaction term between treatment and mediator with X values#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(age = 700))#
-summary(contcont.int)
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(age = 30), boot = TRUE)#
-summary(contcont.int)
-# Interaction term between treatment and mediator with X values#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(age = 30))#
-summary(contcont.int)
-source("../mediation/R/mediate.R")
-# Interaction term between treatment and mediator with X values with boot#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(age = 30), boot = TRUE)#
-summary(contcont.int)
-# Interaction term between treatment and mediator with X values#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(age = 30))#
-summary(contcont.int)
-source("../mediation/R/mediate.R")
-# Interaction term between treatment and mediator with X values with boot#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(age = 30), boot = TRUE)#
-summary(contcont.int)
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(age = 30), boot = TRUE)#
-summary(contcont.int)
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(age = 30), boot = TRUE)#
-summary(contcont.int)
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(age = 30), boot = TRUE)#
-summary(contcont.int)
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(age = 30))#
-summary(contcont.int)
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(age = 30))#
-summary(contcont.int)
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(age = 30), boot = TRUE)#
-summary(contcont.int)
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(age = 50), boot = TRUE)#
-summary(contcont.int)
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(age = 70), boot = TRUE)#
-summary(contcont.int)
-#
-# Interaction term between treatment and mediator with X values with boot#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(age = 90), boot = TRUE)#
-summary(contcont.int)
-# Interaction term between treatment and mediator with X values#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(age = 30))#
-summary(contcont.int)
-# Interaction term between treatment and mediator with X values#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(age = 50))#
-summary(contcont.int)
-# Interaction term between treatment and mediator with X values#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(age = 70))#
-summary(contcont.int)
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(age = 90))#
-summary(contcont.int)
-# Interaction term between treatment and mediator with X values with boot#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(age = 50), boot = TRUE)#
-summary(contcont.int)
-# Interaction term between treatment and mediator with X values with boot#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(age = 70), boot = TRUE)#
-summary(contcont.int)
-# Interaction term between treatment and mediator with X values with boot#
-set.seed(1)#
-contcont.int <- mediate(b.int, d.int, sims=10, treat="treat", mediator="job_seek",#
-						covariates = list(age = 90), boot = TRUE)#
-summary(contcont.int)
-b.bin <- glm(job_dich ~ treat + econ_hard + sex + age + nonwhite, data = jobs, #
-    family = binomial(link = "probit"))#
-c.binM <- lm(depress2 ~ treat + job_dich + econ_hard + sex + age + nonwhite, data=jobs)#
-d.binM <- lm(depress2 ~ treat + job_dich + treat:job_dich + econ_hard + sex + age + nonwhite, data=jobs)#
-b.bin.int <- glm(job_dich ~ treat*age + econ_hard + sex + nonwhite, data = jobs, #
-    family = binomial(link = "probit"))#
-c.binM.int <- lm(depress2 ~ treat*age + job_dich + econ_hard + sex + nonwhite, data=jobs)#
-d.binM.int <- lm(depress2 ~ treat*age + job_dich + treat:job_dich + econ_hard + sex + nonwhite, data=jobs)#
-#
-#
-# Base case#
-set.seed(1)#
-bincont <- mediate(b.bin, c.binM, sims=10, treat="treat", mediator="job_dich")#
-summary(bincont)#
-#
-# boot = TRUE#
-set.seed(1)#
-bincont.boot <- mediate(b.bin, c.binM, boot=TRUE, sims=10, treat="treat", mediator="job_dich")#
-summary(bincont.boot)#
-#
-# Interaction term between treatment and mediator#
-set.seed(1)#
-bincont.int <- mediate(b.bin, d.binM, sims=10, treat="treat", mediator="job_dich")#
-summary(bincont.int)
-set.seed(1)#
-bincont.int <- mediate(b.bin, d.binM, sims=10, treat="treat", mediator="job_dich",#
-					covariates = list(age = 30))#
-summary(bincont.int)
-set.seed(1)#
-bincont.int <- mediate(b.bin, d.binM, sims=10, treat="treat", mediator="job_dich")#
-summary(bincont.int)
-set.seed(1)#
-bincont.int <- mediate(b.bin, d.binM, sims=10, treat="treat", mediator="job_dich",#
-					covariates = list(age = 30))#
-summary(bincont.int)
-set.seed(1)#
-bincont.int <- mediate(b.bin, d.binM, sims=10, treat="treat", mediator="job_dich",#
-					covariates = list(age = 300))#
-summary(bincont.int)
-set.seed(1)#
-bincont.int <- mediate(b.bin, d.binM, sims=10, treat="treat", mediator="job_dich",#
-					covariates = list(age = 300), boot=T)#
-summary(bincont.int)
-set.seed(1)#
-bincont.int <- mediate(b.bin, d.binM, sims=10, treat="treat", mediator="job_dich",#
-					covariates = list(age = 30), boot=T)#
-summary(bincont.int)
-set.seed(1)#
-bincont.int <- mediate(b.bin, d.binM, sims=10, treat="treat", mediator="job_dich",#
-					covariates = list(age = 3000), boot=T)#
-summary(bincont.int)
-b.ord <- polr(job_disc ~ treat + econ_hard + sex + age + nonwhite, data = jobs, #
-    method = "probit", Hess = TRUE)#
-c.ordM <- lm(depress2 ~ treat + job_disc + econ_hard + sex + age + nonwhite, data=jobs)#
-d.ordM <- lm(depress2 ~ treat + job_disc + treat:job_disc + econ_hard + sex + age + nonwhite, data=jobs)#
-b.ord.int <- polr(job_disc ~ treat*age + econ_hard + sex + nonwhite, data = jobs, #
-    method = "probit", Hess = TRUE)#
-c.ordM.int <- lm(depress2 ~ treat*age + job_disc + econ_hard + sex + nonwhite, data=jobs)#
-d.ordM.int <- lm(depress2 ~ treat*age + job_disc + treat:job_disc + econ_hard + sex + nonwhite, data=jobs)#
-#
-# Base case#
-set.seed(1)#
-ordcont <- mediate(b.ord, c.ordM, sims=10, treat="treat", mediator="job_disc")#
-summary(ordcont)#
-#
-# Hess = FALSE; error#
-b.ord.noH <- polr(job_disc ~ treat + econ_hard + sex + age, data = jobs, #
-    method = "probit", Hess = FALSE)#
-set.seed(1)#
-ordcont.noH <- mediate(b.ord.noH, c.ordM, sims=10, treat="treat", mediator="job_disc")#
-#
-# boot = TRUE#
-set.seed(1)#
-ordcont.boot <- mediate(b.ord, c.ordM, boot=TRUE, sims=10, treat="treat", mediator="job_disc")#
-summary(ordcont.boot)#
-#
-# Interaction term between treatment and mediator#
-set.seed(1)#
-ordcont.int <- mediate(b.ord, d.ordM, sims=10, treat="treat", mediator="job_disc")#
-summary(ordcont.int)
-set.seed(1)#
-bincont.int <- mediate(b.bin.int, d.binM.int, sims=10, treat="treat", mediator="job_dich")#
-summary(bincont.int)#
-#
-# Interaction term between treatment and mediator with X#
-set.seed(1)#
-bincont.int <- mediate(b.bin.int, d.binM.int, sims=10, treat="treat", mediator="job_dich",#
-					covariates = list(age = 30), boot=T)#
-summary(bincont.int)
-set.seed(1)#
-bincont.int <- mediate(b.bin.int, d.binM.int, sims=10, treat="treat", mediator="job_dich",#
-					covariates = list(age = 300), boot=T)#
-summary(bincont.int)
-# Interaction term between treatment and mediator#
-set.seed(1)#
-ordcont.int <- mediate(b.ord.int, d.ordM.int, sims=10, treat="treat", mediator="job_disc")#
-summary(ordcont.int)#
-#
-# Interaction term between treatment and mediator with X#
-set.seed(1)#
-ordcont.int <- mediate(b.ord.int, d.ordM.int, sims=10, treat="treat", mediator="job_disc")#
-summary(ordcont.int)
-# Interaction term between treatment and mediator with X#
-set.seed(1)#
-ordcont.int <- mediate(b.ord.int, d.ordM.int, sims=10, treat="treat", mediator="job_disc",#
-					covariates = list(age = 30))#
-summary(ordcont.int)
-# Interaction term between treatment and mediator with X#
-set.seed(1)#
-ordcont.int <- mediate(b.ord.int, d.ordM.int, sims=10, treat="treat", mediator="job_disc",#
-					covariates = list(age = 60))#
-summary(ordcont.int)
-# Interaction term between treatment and mediator with X#
-set.seed(1)#
-ordcont.int <- mediate(b.ord.int, d.ordM.int, sims=10, treat="treat", mediator="job_disc",#
-					covariates = list(age = 90))#
-summary(ordcont.int)
-# Interaction term between treatment and mediator with X#
-set.seed(1)#
-ordcont.int <- mediate(b.ord.int, d.ordM.int, sims=10, treat="treat", mediator="job_disc",#
-					covariates = list(age = 90), boot = T)#
-summary(ordcont.int)
-set.seed(1)#
-ordcont.int <- mediate(b.ord.int, d.ordM.int, sims=10, treat="treat", mediator="job_disc",#
-					covariates = list(age = 60), boot = T)#
-summary(ordcont.int)
-# Interaction term between treatment and mediator with X#
-set.seed(1)#
-ordcont.int <- mediate(b.ord.int, d.ordM.int, sims=10, treat="treat", mediator="job_disc",#
-					covariates = list(age = 30), boot = T)#
-summary(ordcont.int)
-# Interaction term between treatment and mediator with X#
-set.seed(1)#
-ordcont.int <- mediate(b.ord.int, d.ordM.int, sims=10, treat="treat", mediator="job_disc",#
-					covariates = list(age = 90), boot = T)#
-summary(ordcont.int)
-b <- lm(job_seek ~ treat + econ_hard + sex + age + nonwhite, data=jobs)#
-c.binY <- glm(work1 ~ treat + job_seek + econ_hard + sex + age + nonwhite, data=jobs,#
-    family=binomial(link="probit"))#
-d.binY <- glm(work1 ~ treat + job_seek + treat:job_seek + econ_hard + sex + age + nonwhite, data=jobs,#
-    family=binomial(link="probit"))#
-b.int <- lm(job_seek ~ treat*age + econ_hard + sex + nonwhite, data=jobs)#
-c.binY.int <- glm(work1 ~ treat*age + job_seek + econ_hard + sex + nonwhite, data=jobs,#
-    family=binomial(link="probit"))#
-d.binY.int <- glm(work1 ~ treat*age + job_seek + treat:job_seek + econ_hard + sex + nonwhite, data=jobs,#
-    family=binomial(link="probit"))#
-#
-# Base case#
-set.seed(1)#
-contbin <- mediate(b, c.binY, sims=10, treat="treat", mediator="job_seek")#
-summary(contbin)#
-#
-# boot = TRUE#
-set.seed(1)#
-contbin.boot <- mediate(b, c.binY, boot=TRUE, sims=10, treat="treat", mediator="job_seek")#
-summary(contbin.boot)#
-#
-# Interaction term between treatment and mediator#
-set.seed(1)#
-contbin.int <- mediate(b, d.binY, sims=10, treat="treat", mediator="job_seek")#
-summary(contbin.int)
-library(mediation)
-set.seed(1)#
-contbin <- mediate(b, c.binY, sims=10, treat="treat", mediator="job_seek")#
-summary(contbin)
-set.seed(1)#
-contbin.boot <- mediate(b, c.binY, boot=TRUE, sims=1000, treat="treat", mediator="job_seek")#
-summary(contbin.boot)
-set.seed(1)#
-contbin.int <- mediate(b.int, d.binY.int, sims=10, treat="treat", mediator="job_seek")#
-summary(contbin.int)
-set.seed(1)#
-contbin.int <- mediate(b.int, d.binY.int, sims=10, treat="treat", mediator="job_seek",#
-					covariates = list(age = 30))#
-summary(contbin.int)
-set.seed(1)#
-contbin.int <- mediate(b.int, d.binY.int, sims=10, treat="treat", mediator="job_seek",#
-					covariates = list(age = 60))#
-summary(contbin.int)
-set.seed(1)#
-contbin.int <- mediate(b.int, d.binY.int, sims=10, treat="treat", mediator="job_seek",#
-					covariates = list(age = 90))#
-summary(contbin.int)
-set.seed(1)#
-contbin.int <- mediate(b.int, d.binY.int, sims=10, treat="treat", mediator="job_seek",#
-					covariates = list(age = 0))#
-summary(contbin.int)
-set.seed(1)#
-contbin.int <- mediate(b.int, d.binY.int, sims=10, treat="treat", mediator="job_seek",#
-					covariates = list(age = 30), boot = TRUE)#
-summary(contbin.int)
-contbin.int <- mediate(b.int, d.binY.int, sims=10, treat="treat", mediator="job_seek",#
-					covariates = list(age = 30), boot = TRUE)#
-summary(contbin.int)
-contbin.int <- mediate(b.int, d.binY.int, sims=10, treat="treat", mediator="job_seek",#
-					covariates = list(age = 30), boot = TRUE)#
-summary(contbin.int)
-contbin.int <- mediate(b.int, d.binY.int, sims=10, treat="treat", mediator="job_seek",#
-					covariates = list(age = 30), boot = TRUE)#
-summary(contbin.int)
-contbin.int <- mediate(b.int, d.binY.int, sims=10, treat="treat", mediator="job_seek",#
-					covariates = list(age = 30), boot = TRUE)#
-summary(contbin.int)
-contbin.int <- mediate(b.int, d.binY.int, sims=10, treat="treat", mediator="job_seek",#
-					covariates = list(age = 30), boot = TRUE)#
-summary(contbin.int)
-contbin.int <- mediate(b.int, d.binY.int, sims=10, treat="treat", mediator="job_seek",#
-					covariates = list(age = 30), boot = F)#
-summary(contbin.int)
-contbin.int <- mediate(b.int, d.binY.int, sims=10, treat="treat", mediator="job_seek",#
-					covariates = list(age = 30), boot = F)#
-summary(contbin.int)
-contbin.int <- mediate(b.int, d.binY.int, sims=10, treat="treat", mediator="job_seek",#
-					covariates = list(age = 30), boot = F)#
-summary(contbin.int)
-contbin.int <- mediate(b.int, d.binY.int, sims=10, treat="treat", mediator="job_seek",#
-					covariates = list(age = 30), boot = F)#
-summary(contbin.int)
-help(format)
-format(nn)
-Inference conditional on the covariate values specified in "covariates"
-source("../mediation/R/mediate.R")
-b <- lm(job_seek ~ treat + econ_hard + sex + age + nonwhite, data=jobs)#
-c.ordY <- polr(depress_ord ~ treat + job_seek + econ_hard + sex + age + nonwhite, data=jobs,#
-    method = "probit")#
-d.ordY <- polr(depress_ord ~ treat + job_seek + treat:job_seek + econ_hard + sex + age + nonwhite, data=jobs,#
-    method = "probit")#
-b.int <- lm(job_seek ~ treat*age + econ_hard + sex + nonwhite, data=jobs)#
-c.ordY.int <- polr(depress_ord ~ treat*age + job_seek + econ_hard + sex + nonwhite, data=jobs,#
-    method = "probit")#
-d.ordY.int <- polr(depress_ord ~ treat*age + job_seek + treat:job_seek + econ_hard + sex + nonwhite, data=jobs,#
-    method = "probit")
-set.seed(1)#
-contord.int <- mediate(b.int, d.ordY.int, sims=100, treat="treat", mediator="job_seek")#
-summary(contord.int)
-# Interaction term between treatment and mediator#
-set.seed(1)#
-contord.int <- mediate(b.int, d.ordY.int, sims=100, treat="treat", mediator="job_seek",#
-					covariates = list(age = 30))#
-summary(contord.int)
-# Interaction term between treatment and mediator#
-set.seed(1)#
-contord.int <- mediate(b.int, d.ordY.int, sims=100, treat="treat", mediator="job_seek",#
-					covariates = list(age = 60))#
-summary(contord.int)
-#
-# Interaction term between treatment and mediator#
-set.seed(1)#
-contord.int <- mediate(b.int, d.ordY.int, sims=100, treat="treat", mediator="job_seek",#
-					covariates = list(age = 90))#
-summary(contord.int)
-b.int <- lm(job_seek ~ treat*age + econ_hard + sex, data=jobs)#
-d.int <- lm(depress2 ~ treat*job_seek*age + econ_hard + sex, data=jobs)#
-contcont.int <- mediate(b, d, sims=50, treat="treat", mediator="job_seek")#
-summary(contcont.int)
-contcont.int <- mediate(b.int, d.int, sims=50, treat="treat", mediator="job_seek",#
-			covariates = list(age = 30))
-summary(contcont.int)
-contcont.int <- mediate(b.int, d.int, sims=50, treat="treat", mediator="job_seek",#
-			covariates = list(age = 60))#
-summary(contcont.int)
-contcont.int <- mediate(b.int, d.int, sims=50, treat="treat", mediator="job_seek",#
-			covariates = list(age = 90))#
-summary(contcont.int)
-summary(jobs$age)
