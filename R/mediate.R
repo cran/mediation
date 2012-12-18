@@ -18,17 +18,27 @@ mediate <- function(model.m, model.y, sims = 1000, boot = FALSE,
 
     if(!is.null(cluster) && boot){
         warning("'cluster' is ignored for nonparametric bootstrap")
-        # TODO: take cluster variable from the data frame instead of an independent vector
     }
 
     if(robustSE & !is.null(cluster)){
         stop("choose either `robustSE' or `cluster' option, not both")
     }
-
+    
     # Drop observations not common to both mediator and outcome models
     if(dropobs){
         odata.m <- model.frame(model.m)
         odata.y <- model.frame(model.y)
+        if(!is.null(cluster)){
+          if(is.null(row.names(cluster)) &
+              (nrow(odata.m)!=length(cluster) | nrow(odata.y)!=length(cluster))
+            ){
+              warning("cluster IDs may not correctly match original observations due to missing data")
+            }
+          odata.y <- merge(odata.y, as.data.frame(cluster), sort=FALSE,
+                           by="row.names")
+          rownames(odata.y) <- odata.y$Row.names
+          odata.y <- odata.y[,-1L]
+        }
         newdata <- merge(odata.m, odata.y, sort=FALSE,
                     by=c("row.names", intersect(names(odata.m), names(odata.y))))
         rownames(newdata) <- newdata$Row.names
@@ -44,6 +54,9 @@ mediate <- function(model.m, model.y, sims = 1000, boot = FALSE,
         }
         model.m <- eval.parent(call.m)
         model.y <- eval.parent(call.y)
+        if(!is.null(cluster)){
+            cluster <- factor(newdata[, ncol(newdata)])  # factor drops missing levels
+        }
     }
 
     # Model type indicators
@@ -170,9 +183,9 @@ mediate <- function(model.m, model.y, sims = 1000, boot = FALSE,
     getvcov <- function(dat, fm, cluster){
         ## Compute cluster robust standard errors
         ## fm is the model object
-        attach(dat, warn.conflicts = F)
-        M <- length(unique(cluster))
-        N <- length(cluster)
+        cluster <- factor(cluster)  # remove missing levels and NA
+        M <- nlevels(cluster)
+        N <- sum(!is.na(cluster))
         K <- fm$rank
         dfc <- (M/(M-1))*((N-1)/(N-K))
         uj  <- apply(estfun(fm),2, function(x) tapply(x, cluster, sum));
@@ -225,7 +238,13 @@ mediate <- function(model.m, model.y, sims = 1000, boot = FALSE,
                 if(robustSE){
                     MModel.var.cov <- vcovHC(model.m, ...)
                 } else if(!is.null(cluster)){
-                    MModel.var.cov <- getvcov(m.data, model.m, cluster)
+                    if(nrow(m.data)!=length(cluster)){
+                      warning("length of cluster vector differs from # of obs for mediator model")
+                    }
+                    dta <- merge(m.data, as.data.frame(cluster), sort=FALSE,
+                                 by="row.names")
+                    fm <- update(model.m, data=dta)
+                    MModel.var.cov <- getvcov(dta, fm, dta[,ncol(dta)])
                 } else {
                     MModel.var.cov <- vcov(model.m)
                 }
@@ -248,7 +267,13 @@ mediate <- function(model.m, model.y, sims = 1000, boot = FALSE,
                 if(robustSE){
                     YModel.var.cov <- vcovHC(model.y, ...)
                 } else if(!is.null(cluster)){
-                    YModel.var.cov <- getvcov(y.data, model.y, cluster)
+                    if(nrow(y.data)!=length(cluster)){
+                      warning("length of cluster vector differs from # of obs for outcome model")
+                    }
+                    dta <- merge(y.data, as.data.frame(cluster), sort=FALSE,
+                               by="row.names")
+                    fm <- update(model.y, data=dta)
+                    YModel.var.cov <- getvcov(dta, fm, dta[,ncol(dta)])
                 } else {
                     YModel.var.cov <- vcov(model.y)
                 }
