@@ -2,6 +2,7 @@ importFrom(MASS, mvrnorm, gamma.shape)
 importFrom(Matrix, Diagonal)
 importMethodsFrom(Matrix, kronecker)
 importFrom(lpSolve, lp)
+importFrom(sandwich, sandwich, vcovHC)
 
 export(mediate, summary.mediate, plot.mediate,
        summary.mediate.order, plot.mediate.order,
@@ -11,7 +12,8 @@ export(mediate, summary.mediate, plot.mediate,
        summary.mediations.order, plot.mediations.order,
        multimed, summary.multimed, plot.multimed,
        mediate.sed, mediate.pd, mediate.ped, mediate.ced,
-       summary.mediate.design)
+       summary.mediate.design,
+       test.TMint, test.modmed, amelidiate)
 
 S3method(summary, mediate)
 S3method(summary, mediate.order)
@@ -38,3 +40,12 @@ S3method(print, summary.mediations)
 S3method(print, summary.mediations.order)
 S3method(print, summary.multimed)
 S3method(print, summary.mediate.design)
+S3method(print, test.modmed.mediate)
+S3method(print, test.modmed.mediate.order)
+S3method(print, htest.order)
+S3method(test.TMint, default)
+S3method(test.TMint, mediate)
+S3method(test.TMint, mediate.order)
+S3method(test.modmed, default)
+S3method(test.modmed, mediate)
+S3method(test.modmed, mediate.order)

@@ -6,8 +6,10 @@ mediate <- function(model.m, model.y, sims = 1000, boot = FALSE,
                     long = TRUE, dropobs = FALSE,
                     robustSE = FALSE, cluster = NULL, group.out = NULL, ...){
   
+  cl <- match.call()
+  
   # Warn users who still use INT option
-  if(match("INT", names(match.call()), 0L)){
+  if(match("INT", names(cl), 0L)){
     warning("'INT' is deprecated - existence of interaction terms is now automatically detected from model formulas")
   }
   
@@ -154,6 +156,13 @@ mediate <- function(model.m, model.y, sims = 1000, boot = FALSE,
   # Model frames for M and Y models
   m.data <- model.frame(model.m)  # Call.M$data
   y.data <- model.frame(model.y)  # Call.Y$data
+
+  # group-level mediator 
+  if(isMer.y & !isMer.m){
+    m.data <- eval(model.m$call$data, environment(formula(model.m)))  ### add group ID to m.data 
+    m.data <- na.omit(m.data)
+    y.data <- na.omit(y.data)
+  }
   
   # Specify group names
   
@@ -211,7 +220,7 @@ mediate <- function(model.m, model.y, sims = 1000, boot = FALSE,
     group.id.y <- NULL
   }
   # group data to be output in summary and plot if lmer or glmer 
-  if(isMer.m && isMer.y){
+  if(isMer.y && isMer.m){
     if(group.out == group.m){
       group.id <- m.data[,group.m]
       group.name <- group.m
@@ -219,12 +228,25 @@ mediate <- function(model.m, model.y, sims = 1000, boot = FALSE,
       group.id <- y.data[,group.y]     
       group.name <- group.y
     }
-  } else if(isMer.m && !isMer.y){
+  } else if(!isMer.y && isMer.m){
     group.id <- m.data[,group.m]   
     group.name <- group.m
-  } else if(!isMer.m && isMer.y){
-    group.id <- y.data[,group.y]
-    group.name <- group.y
+  } else if(isMer.y && !isMer.m){   ### group-level mediator
+    if(!(group.y %in% names(m.data))){
+      stop("specify group-level variable in mediator data")
+    } else {
+      group.id <- y.data[,group.y]
+      group.name <- group.y
+      Y.ID<- sort(unique(group.id))
+      M.ID <- sort(as.vector(data.matrix(m.data[group.y])))
+      if(length(Y.ID) != length(M.ID)){
+        stop("groups do not match between mediator and outcome models")
+      } else {
+        if(FALSE %in% unique(Y.ID == M.ID)){
+          stop("groups do not match between mediator and outcome models")
+        }
+      }
+    }
   } else {
     group.id <- NULL
     group.name <- NULL
@@ -234,12 +256,14 @@ mediate <- function(model.m, model.y, sims = 1000, boot = FALSE,
   # Numbers of observations and categories
   n.m <- nrow(m.data)
   n.y <- nrow(y.data)
-  if(n.m != n.y){
-    stop("number of observations do not match between mediator and outcome models")
-  } else{
-    n <- n.m
+  if(!(isMer.y & !isMer.m)){   ### n.y and n.m are different when group-level mediator is used 
+    if(n.m != n.y){
+      stop("number of observations do not match between mediator and outcome models")
+    } else{
+      n <- n.m
+    }
+    m <- length(sort(unique(model.frame(model.m)[,1])))
   }
-  m <- length(sort(unique(model.frame(model.m)[,1])))
   
   # Extracting weights from models
   weights.m <- model.weights(m.data)
@@ -257,12 +281,16 @@ mediate <- function(model.m, model.y, sims = 1000, boot = FALSE,
   if(is.null(weights.y)){
     weights.y <- rep(1,nrow(y.data))
   }
-  if(!all(weights.m == weights.y)) {
-    stop("weights on outcome and mediator models not identical")
-  } else {
-    weights <- weights.m
+  if(!(isMer.y & !isMer.m)){
+    if(!all(weights.m == weights.y)) {
+      stop("weights on outcome and mediator models not identical")
+    } else {
+      weights <- weights.m
+    }
+  } else{
+    weights <- weights.y  ### group-level mediator  
   }
-  
+
   # Convert character treatment to factor
   if(is.character(m.data[,treat])){
     m.data[,treat] <- factor(m.data[,treat])
@@ -326,15 +354,6 @@ mediate <- function(model.m, model.y, sims = 1000, boot = FALSE,
     dfc <- (M/(M-1))*((N-1)/(N-K))
     uj  <- apply(estfun(fm),2, function(x) tapply(x, cluster, sum));
     dfc*sandwich(fm, meat. = crossprod(uj)/N)
-  }
-  
-  pval <- function(x, xhat){
-    ## Compute p-values
-    if (xhat == 0) out <- 1
-    else {
-      out <- 2 * sum((abs(x) >= 2 * abs(xhat)) & (sign(x) == sign(xhat))) / sims
-    }
-    return(min(out, 1))
   }
   
   ############################################################################
@@ -465,6 +484,11 @@ mediate <- function(model.m, model.y, sims = 1000, boot = FALSE,
       #####################################
       ##  Mediator Predictions
       #####################################
+      ### number of observations are different when group-level mediator is used
+      if(isMer.y & !isMer.m){
+        n <- n.m
+      }
+      
       pred.data.t <- pred.data.c <- m.data
       
       if(isFactorT){
@@ -474,7 +498,7 @@ mediate <- function(model.m, model.y, sims = 1000, boot = FALSE,
         pred.data.t[,treat] <- cat.1
         pred.data.c[,treat] <- cat.0
       }
-      
+
       if(!is.null(covariates)){
         for(p in 1:length(covariates)){
           vl <- names(covariates[p])
@@ -649,7 +673,7 @@ mediate <- function(model.m, model.y, sims = 1000, boot = FALSE,
           M.RANEF1 <- M.ranef*var1 + M.RANEF1   # sum of (random effects*corresponding covarites)  
           M.RANEF0 <- M.ranef*var0 + M.RANEF0
         }
-        sigma <- lme4:::sigma(model.m)
+        sigma <- lme4::sigma(model.m)
         error <- rnorm(sims*n, mean=0, sd=sigma)
         muM1 <- tcrossprod(MModel.fixef.sim, mmat.t) + M.RANEF1
         muM0 <- tcrossprod(MModel.fixef.sim, mmat.c) + M.RANEF0
@@ -714,14 +738,37 @@ mediate <- function(model.m, model.y, sims = 1000, boot = FALSE,
       } else {
         stop("mediator model is not yet implemented")
       }
+
+      ### group-level mediator : J -> NJ
+      if(isMer.y & !isMer.m){
+        J <- nrow(m.data)
+        group.id.m <- as.vector(data.matrix(m.data[group.y]))
+        v1 <- v0 <- matrix(NA, sims, length(group.id.y))
+        num.m <- 1:J
+        num.y <- 1:length(group.id.y)
+        for (j in 1:J){
+          id.y <- unique(group.id.y)[j]
+          NUM.M <- num.m[group.id.m == id.y]
+          NUM.Y <- num.y[group.id.y == id.y]
+          v1[, NUM.Y] <- PredictM1[, NUM.M]
+          v0[, NUM.Y] <- PredictM0[, NUM.M]
+        }
+        PredictM1 <- v1
+        PredictM0 <- v0
+      }
       
       rm(mmat.t, mmat.c)
       
       #####################################
       ##  Outcome Predictions
       #####################################
+      ### number of observations are different when group-level mediator is used
+      if(isMer.y & !isMer.m){
+        n <- n.y
+      }
+
       effects.tmp <- array(NA, dim = c(n, sims, 4))
-      
+
       if(isMer.y){
         Y.RANEF1 <- Y.RANEF2 <- Y.RANEF3 <- Y.RANEF4 <- 0
         ### 1=RE for Y(1,M(1)); 2=RE for Y(1,M(0)); 3=RE for Y(0,M(1)); 4=RE for Y(0,M(0))
@@ -762,7 +809,7 @@ mediate <- function(model.m, model.y, sims = 1000, boot = FALSE,
           Y.RANEF4 <- Y.ranef*var4 + Y.RANEF4
         }       	
       }
-      
+
       for(e in 1:4){
         tt <- switch(e, c(1,1,1,0), c(0,0,1,0), c(1,0,1,1), c(1,0,0,0))
         Pr1 <- matrix(, nrow=n, ncol=sims)
@@ -1362,7 +1409,7 @@ mediate <- function(model.m, model.y, sims = 1000, boot = FALSE,
                   INT=INT, conf.level=conf.level,
                   model.y=model.y, model.m=model.m,
                   control.value=control.value, treat.value=treat.value,
-                  nobs=n, sims=sims)
+                  nobs=n, sims=sims, call=cl)
       class(out) <- "mediate"
     } 
     if(!long && !isMer.y && !isMer.m){
@@ -1381,7 +1428,7 @@ mediate <- function(model.m, model.y, sims = 1000, boot = FALSE,
                   INT=INT, conf.level=conf.level,
                   model.y=model.y, model.m=model.m,
                   control.value=control.value, treat.value=treat.value,
-                  nobs=n, sims=sims)
+                  nobs=n, sims=sims, call=cl)
       class(out) <- "mediate"
     }
     if(long && isMer.y || isMer.m) {
@@ -1418,7 +1465,7 @@ mediate <- function(model.m, model.y, sims = 1000, boot = FALSE,
                   INT=INT, conf.level=conf.level,
                   model.y=model.y, model.m=model.m,
                   control.value=control.value, treat.value=treat.value,
-                  nobs=n, sims=sims,
+                  nobs=n, sims=sims, call=cl,
                   group.m=group.m,group.y=group.y,group.name=group.name,
                   group.id.m=group.id.m,group.id.y=group.id.y,group.id=group.id)   
       class(out) <- "mediate.mer"
@@ -1449,7 +1496,7 @@ mediate <- function(model.m, model.y, sims = 1000, boot = FALSE,
                   INT=INT, conf.level=conf.level,
                   model.y=model.y, model.m=model.m,
                   control.value=control.value, treat.value=treat.value,
-                  nobs=n, sims=sims,
+                  nobs=n, sims=sims, call=cl,
                   group.m=group.m,group.y=group.y,group.name=group.name,
                   group.id.m=group.id.m,group.id.y=group.id.y,group.id=group.id)
       class(out) <- "mediate.mer"
@@ -1768,7 +1815,8 @@ mediate <- function(model.m, model.y, sims = 1000, boot = FALSE,
                   covariates=covariates,
                   INT=INT, conf.level=conf.level,
                   model.y=model.y, model.m=model.m,
-                  control.value=control.value, treat.value=treat.value, nobs=n, sims=sims)
+                  control.value=control.value, treat.value=treat.value, 
+                  nobs=n, sims=sims, call=cl)
     } else {
       out <- list(d0=d0, d1=d1, d0.ci=d0.ci, d1.ci=d1.ci,
                   d0.p=d0.p, d1.p=d1.p,
@@ -1779,7 +1827,8 @@ mediate <- function(model.m, model.y, sims = 1000, boot = FALSE,
                   covariates=covariates,
                   INT=INT, conf.level=conf.level,
                   model.y=model.y, model.m=model.m,
-                  control.value=control.value, treat.value=treat.value, nobs=n, sims=sims)
+                  control.value=control.value, treat.value=treat.value, 
+                  nobs=n, sims=sims, call=cl)
     }
     class(out) <- "mediate.order"
     out
@@ -1820,8 +1869,8 @@ print.summary.mediate <- function(x, ...){
     smat <- rbind(smat, c(x$z0, x$z0.ci, x$z0.p))
     smat <- rbind(smat, c(x$tau.coef, x$tau.ci, x$tau.p))
     smat <- rbind(smat, c(x$n0, x$n0.ci, x$n0.p))
-    rownames(smat) <- c("Mediation Effect", "Direct Effect",
-                        "Total Effect", "Proportion via Mediation")
+    rownames(smat) <- c("ACME", "ADE",
+                        "Total Effect", "Prop. Mediated")
   } else {
     smat <- c(x$d0, x$d0.ci, x$d0.p)
     smat <- rbind(smat, c(x$d1, x$d1.ci, x$d1.p))
@@ -1833,14 +1882,14 @@ print.summary.mediate <- function(x, ...){
     smat <- rbind(smat, c(x$d.avg, x$d.avg.ci, x$d.avg.p))
     smat <- rbind(smat, c(x$z.avg, x$z.avg.ci, x$z.avg.p))
     smat <- rbind(smat, c(x$n.avg, x$n.avg.ci, x$n.avg.p))
-    rownames(smat) <- c("Mediation Effect_0", "Mediation Effect_1",
-                        "Direct Effect_0", "Direct Effect_1",
+    rownames(smat) <- c("ACME (control)", "ACME (treated)",
+                        "ADE (control)", "ADE (treated)",
                         "Total Effect",
-                        "Proportion via Mediation_0",
-                        "Proportion via Mediation_1",
-                        "Mediation Effect (Ave.)",
-                        "Direct Effect (Ave.)",
-                        "Proportion via Mediation (Ave.)")
+                        "Prop. Mediated (control)",
+                        "Prop. Mediated (treated)",
+                        "ACME (average)",
+                        "ADE (average)",
+                        "Prop. Mediated (average)")
   }
   colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                       paste(clp, "% CI Upper", sep=""), "p-value")
@@ -1896,8 +1945,8 @@ print.summary.mediate.mer <- function(x,...){
     smat <- rbind(smat, c(x$z0, x$z0.ci, x$z0.p))
     smat <- rbind(smat, c(x$tau.coef, x$tau.ci, x$tau.p))
     smat <- rbind(smat, c(x$n0, x$n0.ci, x$n0.p))
-    rownames(smat) <- c("Mediation Effect", "Direct Effect",
-                        "Total Effect", "Proportion via Mediation")
+    rownames(smat) <- c("ACME", "ADE",
+                        "Total Effect", "Prop. Mediated")
   }else{
     smat <- c(x$d0, x$d0.ci, x$d0.p)
     smat <- rbind(smat, c(x$d1, x$d1.ci, x$d1.p))
@@ -1909,14 +1958,14 @@ print.summary.mediate.mer <- function(x,...){
     smat <- rbind(smat, c(x$d.avg, x$d.avg.ci, x$d.avg.p))
     smat <- rbind(smat, c(x$z.avg, x$z.avg.ci, x$z.avg.p))
     smat <- rbind(smat, c(x$n.avg, x$n.avg.ci, x$n.avg.p))
-    rownames(smat) <- c("Mediation Effect_0", "Mediation Effect_1",
-                        "Direct Effect_0", "Direct Effect_1",
+    rownames(smat) <- c("ACME (control)", "ACME (treated)",
+                        "ADE (control)", "ADE (treated)",
                         "Total Effect",
-                        "Proportion via Mediation_0",
-                        "Proportion via Mediation_1",
-                        "Mediation Effect (Ave.)",
-                        "Direct Effect (Ave.)",
-                        "Proportion via Mediation (Ave.)")
+                        "Prop. Mediated (control)",
+                        "Prop. Mediated (treated)",
+                        "ACME (average)",
+                        "ADE (average)",
+                        "Prop. Mediated (average)")
   }
   colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                       paste(clp, "% CI Upper", sep=""), "p-value")
@@ -1964,14 +2013,14 @@ print.summary.mediate.mer.2 <- function(x,...){
   printone <- !x$INT && isLinear.y
   
   if(printone){
-    cat("Mediation Effect","\n\n")
+    cat("ACME","\n\n")
     smat<-cbind(x$d0.group,x$d0.ci.group,x$d0.p.group)
     rownames(smat) <- gname
     colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                         paste(clp, "% CI Upper", sep=""), "p-value") 
     printCoefmat(smat, digits=3)
     cat("\n")
-    cat("Direct Effect","\n\n")
+    cat("ADE","\n\n")
     smat<-cbind(x$z0.group, x$z0.ci.group, x$z0.p.group)
     rownames(smat) <- gname
     colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
@@ -1985,7 +2034,7 @@ print.summary.mediate.mer.2 <- function(x,...){
                         paste(clp, "% CI Upper", sep=""), "p-value") 
     printCoefmat(smat, digits=3)
     cat("\n") 
-    cat("Proportion via Mediation","\n\n")
+    cat("Prop. Mediated","\n\n")
     smat<-cbind(x$n0.group, x$n0.ci.group, x$n0.p.group)
     rownames(smat) <- gname
     colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
@@ -1999,28 +2048,28 @@ print.summary.mediate.mer.2 <- function(x,...){
     cat("Simulations:", x$sims,"\n\n")
     invisible(x) 
   }else{
-    cat("Mediation Effect_0","\n\n")
+    cat("ACME (control)","\n\n")
     smat<-cbind(x$d0.group,x$d0.ci.group,x$d0.p.group)
     rownames(smat) <- gname
     colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                         paste(clp, "% CI Upper", sep=""), "p-value") 
     printCoefmat(smat, digits=3)
     cat("\n")
-    cat("Mediation Effect_1","\n\n")
+    cat("ACME (treated)","\n\n")
     smat<-cbind(x$d1.group, x$d1.ci.group, x$d1.p.group)
     rownames(smat) <- gname
     colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                         paste(clp, "% CI Upper", sep=""), "p-value") 
     printCoefmat(smat, digits=3)
     cat("\n")
-    cat("Direct Effect_0","\n\n")
+    cat("ADE (control)","\n\n")
     smat<-cbind(x$z0.group, x$z0.ci.group, x$z0.p.group)
     rownames(smat) <- gname
     colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                         paste(clp, "% CI Upper", sep=""), "p-value") 
     printCoefmat(smat, digits=3)
     cat("\n")
-    cat("Direct Effect_1","\n\n")
+    cat("ADE (treated)","\n\n")
     smat<-cbind(x$z1.group, x$z1.ci.group, x$z1.p.group)
     rownames(smat) <- gname
     colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
@@ -2034,35 +2083,35 @@ print.summary.mediate.mer.2 <- function(x,...){
                         paste(clp, "% CI Upper", sep=""), "p-value") 
     printCoefmat(smat, digits=3)
     cat("\n") 
-    cat("Proportion via Mediation_0","\n\n")
+    cat("Prop. Mediated (control)","\n\n")
     smat<-cbind(x$n0.group, x$n0.ci.group, x$n0.p.group)
     rownames(smat) <- gname
     colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                         paste(clp, "% CI Upper", sep=""), "p-value") 
     printCoefmat(smat, digits=3)
     cat("\n")  
-    cat("Proportion via Mediation_1","\n\n")
+    cat("Prop. Mediated (treated)","\n\n")
     smat<-cbind(x$n1.group, x$n1.ci.group, x$n1.p.group)
     rownames(smat) <- gname
     colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                         paste(clp, "% CI Upper", sep=""), "p-value") 
     printCoefmat(smat, digits=3)
     cat("\n") 
-    cat("Mediation Effect (Ave.)","\n\n")
+    cat("ACME (average)","\n\n")
     smat<-cbind(x$d.avg.group, x$d.avg.ci.group, x$d.avg.p.group)
     rownames(smat) <- gname
     colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                         paste(clp, "% CI Upper", sep=""), "p-value") 
     printCoefmat(smat, digits=3)
     cat("\n") 
-    cat("Direct Effect (Ave.)","\n\n")
+    cat("ADE (average)","\n\n")
     smat<-cbind(x$z.avg.group, x$z.avg.ci.group, x$z.avg.p.group)
     rownames(smat) <- gname
     colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                         paste(clp, "% CI Upper", sep=""), "p-value") 
     printCoefmat(smat, digits=3)
     cat("\n")
-    cat("Proportion via Mediation (Ave.)","\n\n")
+    cat("Prop. Mediated (average)","\n\n")
     smat<-cbind(x$n.avg.group, x$n.avg.ci.group, x$n.avg.p.group)   
     rownames(smat) <- gname
     colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
@@ -2121,10 +2170,10 @@ print.summary.mediate.mer.3 <- function(x,...){
       smat <- rbind(smat, c(x$z0.group[g], x$z0.ci.group[g,], x$z0.p.group[g]))
       smat <- rbind(smat, c(x$tau.coef.group[g], x$tau.ci.group[g,], x$tau.p.group[g]))
       smat <- rbind(smat, c(x$n0.group[g], x$n0.ci.group[g,], x$n0.p.group[g]))
-      rownames(smat) <- c("Mediation Effect", 
-                          "Direct Effect", 
+      rownames(smat) <- c("ACME", 
+                          "ADE", 
                           "Total Effect",
-                          "Proportion via Mediation") 
+                          "Prop. Mediated") 
       colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                           paste(clp, "% CI Upper", sep=""), "p-value")             
       printCoefmat(smat, digits=3)
@@ -2148,14 +2197,14 @@ print.summary.mediate.mer.3 <- function(x,...){
       smat <- rbind(smat, c(x$d.avg.group[g], x$d.avg.ci.group[g,], x$d.avg.p.group[g]))
       smat <- rbind(smat, c(x$z.avg.group[g], x$z.avg.ci.group[g,], x$z.avg.p.group[g]))
       smat <- rbind(smat, c(x$n.avg.group[g], x$n.avg.ci.group[g,], x$n.avg.p.group[g]))   
-      rownames(smat) <- c("Mediation Effect_0", "Mediation Effect_1",
-                          "Direct Effect_0", "Direct Effect_1",
+      rownames(smat) <- c("ACME (control)", "ACME (treated)",
+                          "ADE (control)", "ADE (treated)",
                           "Total Effect",
-                          "Proportion via Mediation_0",
-                          "Proportion via Mediation_1",
-                          "Mediation Effect (Ave.)",
-                          "Direct Effect (Ave.)",
-                          "Proportion via Mediation (Ave.)") 
+                          "Prop. Mediated (control)",
+                          "Prop. Mediated (treated)",
+                          "ACME (average)",
+                          "ADE (average)",
+                          "Prop. Mediated (average)") 
       colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                           paste(clp, "% CI Upper", sep=""), "p-value")             
       printCoefmat(smat, digits=3)
@@ -2190,19 +2239,19 @@ print.summary.mediate.order <- function(x, ...){
   }
   
   # Label Tables
-  rownames(tab.d0)[1] <- "Mediation Effect_0 "
+  rownames(tab.d0)[1] <- "ACME (control) "
   rownames(tab.d0)[4] <- "p-value "
   colnames(tab.d0) <- out.names
-  rownames(tab.d1)[1] <- "Mediation Effect_1 "
+  rownames(tab.d1)[1] <- "ACME (treated) "
   rownames(tab.d1)[4] <- "p-value "
   colnames(tab.d1) <- out.names
-  rownames(tab.z0)[1] <- "Direct Effect_0    "
+  rownames(tab.z0)[1] <- "ADE (control)  "
   rownames(tab.z0)[4] <- "p-value "
   colnames(tab.z0) <- out.names
-  rownames(tab.z1)[1] <- "Direct Effect_1    "
+  rownames(tab.z1)[1] <- "ADE (treated)  "
   rownames(tab.z1)[4] <- "p-value "
   colnames(tab.z1) <- out.names
-  rownames(tab.tau)[1] <- "Total Effect      "
+  rownames(tab.tau)[1] <- "Total Effect  "
   rownames(tab.tau)[4] <- "p-value "
   colnames(tab.tau) <- out.names
   
@@ -2354,7 +2403,7 @@ plot.mediate <- function(x, treatment = NULL, labels = NULL,
   }
   
   if(is.null(labels)){
-    labels <- c("ACME","Direct\nEffect","Total\nEffect")[c(IND,DIR,TOT)]
+    labels <- c("ACME","ADE","Total\nEffect")[c(IND,DIR,TOT)]
   }
   axis(2, at = y.axis, labels = labels, las = 1, tick = TRUE, ...)
   abline(v = 0, lty = 2)
@@ -2435,7 +2484,7 @@ plot.mediate.mer <- function(x, treatment = NULL, group.plots = FALSE,
   
   # 1. Summary plot for population effects
   
-  labels = c("ACME","Direct\nEffect","Total\nEffect")
+  labels = c("ACME","ADE","Total\nEffect")
   y.axis <- c(length(param$coef.vec.1):.5)
   y.axis <- y.axis + 1
   
@@ -2501,7 +2550,7 @@ plot.mediate.mer <- function(x, treatment = NULL, group.plots = FALSE,
       ylim <- c(min(y.axis), max(y.axis))
       
       plot(param$coef.vec.0.group[,1], y.axis, type = "n", xlab = xlab, ylab = ylab,
-           yaxt = "n", xlim = xlim, ylim = ylim, main = "ACME0", ...)
+           yaxt = "n", xlim = xlim, ylim = ylim, main = "ACME (control)", ...)
       
       points(param$coef.vec.0.group[,1], y.axis, type = "p", pch = 1, cex = cex, col = col)
       segments(param$lower.vec.0.group[,1], y.axis, param$upper.vec.0.group[,1], y.axis,
@@ -2523,7 +2572,7 @@ plot.mediate.mer <- function(x, treatment = NULL, group.plots = FALSE,
       ylim <- c(min(y.axis), max(y.axis))
       
       plot(param$coef.vec.1.group[,1], y.axis, type = "n", xlab = xlab, ylab = ylab,
-           yaxt = "n", xlim = xlim, ylim = ylim, main = ifelse(printone, "ACME", "ACME1"), ...)
+           yaxt = "n", xlim = xlim, ylim = ylim, main = ifelse(printone, "ACME", "ACME (treated)"), ...)
       
       points(param$coef.vec.1.group[,1], y.axis, type = "p", pch = 19, cex = cex, col = col)
       segments(param$lower.vec.1.group[,1], y.axis, param$upper.vec.1.group[,1], y.axis,
@@ -2545,7 +2594,7 @@ plot.mediate.mer <- function(x, treatment = NULL, group.plots = FALSE,
       ylim <- c(min(y.axis), max(y.axis))
       
       plot(param$coef.vec.0.group[,2], y.axis, type = "n", xlab = xlab, ylab = ylab,
-           yaxt = "n", xlim = xlim, ylim = ylim, main = "Direct\nEffect0", ...)
+           yaxt = "n", xlim = xlim, ylim = ylim, main = "ADE (control)", ...)
       
       points(param$coef.vec.0.group[,2], y.axis, type = "p", pch = 1, cex = cex, col = col)
       segments(param$lower.vec.0.group[,2], y.axis, param$upper.vec.0.group[,2], y.axis,
@@ -2567,7 +2616,7 @@ plot.mediate.mer <- function(x, treatment = NULL, group.plots = FALSE,
       ylim <- c(min(y.axis), max(y.axis))
       
       plot(param$coef.vec.1.group[,2], y.axis, type = "n", xlab = xlab, ylab = ylab,
-           yaxt = "n", xlim = xlim, ylim = ylim, main = ifelse(printone, "Direct\nEffect", "Direct\nEffect1"), ...)
+           yaxt = "n", xlim = xlim, ylim = ylim, main = ifelse(printone, "ADE", "ADE (treated)"), ...)
       
       points(param$coef.vec.1.group[,2], y.axis, type = "p", pch = 19, cex = cex, col = col)
       segments(param$lower.vec.1.group[,2], y.axis, param$upper.vec.1.group[,2], y.axis,
@@ -2633,7 +2682,7 @@ plot.process.order <- function(model){
 
 #########################################################################
 plot.mediate.order <- function(x, treatment = NULL,
-                               labels = c("ACME","Direct\nEffect","Total\nEffect"),
+                               labels = c("ACME","ADE","Total\nEffect"),
                                xlim = NULL, ylim = NULL, xlab = "", ylab = "",
                                main = NULL, lwd = 1.5, cex = .85,
                                col = "black", ...){
@@ -2727,4 +2776,13 @@ plot.mediate.order <- function(x, treatment = NULL,
   y.axis.new <- c(3,2,1)
   axis(2, at = y.axis.new, labels = labels, las = 1, tick = TRUE, ...)
   abline(v = 0, lty = 2)
+}
+
+pval <- function(x, xhat){
+  ## Compute p-values
+  if (xhat == 0) out <- 1
+  else {
+    out <- 2 * min(sum(x > 0), sum(x < 0)) / length(x)
+  }
+  return(min(out, 1))
 }
