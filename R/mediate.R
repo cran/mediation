@@ -98,17 +98,9 @@ mediate <- function(model.m, model.y, sims = 1000,
       M.fun <- poisson(link = "identity")
     } else if(m.family[1] == "poisson" && m.family[2] == "sqrt"){
       M.fun <- poisson(link = "sqrt")
-    }	else if(m.family[1] == "Gamma" && (is.na(m.family[2]) || m.family[2] == "inverse")){
-      M.fun <- Gamma(link = "inverse")
-    } else if(m.family[1] == "Gamma" && m.family[2] == "identity"){
-      M.fun <- Gamma(link = "identity")
-    } else if(m.family[1] == "Gamma" && m.family[2] == "log"){
-      M.fun <- Gamma(link = "log")
-    } else if(m.family[1] == "inverse.gaussian" && (is.na(m.family[2]) || m.family[2] == "1/mu^2")){
-      M.fun <- inverse.gaussian(link = "1/mu^2")
     } else {
       stop("glmer family for the mediation model not supported")
-    }
+    } ### gamma & inverse gaussian excluded (no function to estimate parameters of S4 glmer vs. S3 glm)
   }
   
   # Record family and link of model.y if glmer 
@@ -126,17 +118,9 @@ mediate <- function(model.m, model.y, sims = 1000,
       Y.fun <- poisson(link = "identity")
     } else if(y.family[1] == "poisson" && y.family[2] == "sqrt"){
       Y.fun <- poisson(link = "sqrt")
-    }	else if(y.family[1] == "Gamma" && (is.na(y.family[2]) || y.family[2] == "inverse")){
-      Y.fun <- Gamma(link = "inverse")
-    } else if(y.family[1] == "Gamma" && y.family[2] == "identity"){
-      Y.fun <- Gamma(link = "identity")
-    } else if(y.family[1] == "Gamma" && y.family[2] == "log"){
-      Y.fun <- Gamma(link = "log")
-    } else if(y.family[1] == "inverse.gaussian" && (is.na(y.family[2]) || y.family[2] == "1/mu^2")){
-      Y.fun <- inverse.gaussian(link = "1/mu^2")
     } else {
       stop("glmer family for the outcome model not supported")
-    }
+    } ### gamma & inverse gaussian excluded (no function to estimate parameters of S4 glmer vs. S3 glm)
   }
   
   # Record family of model.m if glm
@@ -161,6 +145,25 @@ mediate <- function(model.m, model.y, sims = 1000,
   # Model frames for M and Y models
   m.data <- model.frame(model.m)  # Call.M$data
   y.data <- model.frame(model.y)  # Call.Y$data
+
+  if(!is.null(cluster)){
+      row.names(m.data) <- 1:nrow(m.data)
+      row.names(y.data) <- 1:nrow(y.data)
+
+      if(!is.null(model.m$weights)){
+          m.weights <- as.data.frame(model.m$weights)
+          m.name <- as.character(model.m$call$weights)  
+          names(m.weights) <- m.name
+          m.data <- cbind(m.data, m.weights)
+      }
+
+      if(!is.null(model.y$weights)){
+          y.weights <- as.data.frame(model.y$weights)
+          y.name <- as.character(model.y$call$weights)  
+          names(y.weights) <- y.name
+          y.data <- cbind(y.data, y.weights)
+      }
+  }
 
   # group-level mediator 
   if(isMer.y & !isMer.m){
@@ -740,23 +743,11 @@ mediate <- function(model.m, model.y, sims = 1000,
         if(FamilyM == "poisson"){
           PredictM1 <- matrix(rpois(sims*n, lambda = muM1), nrow = sims)
           PredictM0 <- matrix(rpois(sims*n, lambda = muM0), nrow = sims)
-        } else if (FamilyM == "Gamma") {
-          shape <- gamma.shape(model.m)$alpha								### S3
-          PredictM1 <- matrix(rgamma(n*sims, shape = shape,
-                                     scale = muM1/shape), nrow = sims)
-          PredictM0 <- matrix(rgamma(n*sims, shape = shape,
-                                     scale = muM0/shape), nrow = sims)
         } else if (FamilyM == "binomial"){
           PredictM1 <- matrix(rbinom(n*sims, size = 1,
                                      prob = muM1), nrow = sims)
           PredictM0 <- matrix(rbinom(n*sims, size = 1,
                                      prob = muM0), nrow = sims)
-        } else if (FamilyM == "inverse.gaussian"){
-          disp <- summary(model.m)$dispersion								### S3 
-          PredictM1 <- matrix(SuppDists::rinvGauss(n*sims, nu = muM1,
-                                                   lambda = 1/disp), nrow = sims)
-          PredictM0 <- matrix(SuppDists::rinvGauss(n*sims, nu = muM0,
-                                                   lambda = 1/disp), nrow = sims)
         } 
       } else {
         stop("mediator model is not yet implemented")
@@ -1460,7 +1451,8 @@ mediate <- function(model.m, model.y, sims = 1000,
                   INT=INT, conf.level=conf.level,
                   model.y=model.y, model.m=model.m,
                   control.value=control.value, treat.value=treat.value,
-                  nobs=n, sims=sims, call=cl)
+                  nobs=n, sims=sims, call=cl,
+                  robustSE = robustSE, cluster = cluster)
       class(out) <- "mediate"
     } 
     if(!long && !isMer.y && !isMer.m){
@@ -1480,7 +1472,8 @@ mediate <- function(model.m, model.y, sims = 1000,
                   INT=INT, conf.level=conf.level,
                   model.y=model.y, model.m=model.m,
                   control.value=control.value, treat.value=treat.value,
-                  nobs=n, sims=sims, call=cl)
+                  nobs=n, sims=sims, call=cl,
+                  robustSE = robustSE, cluster = cluster)
       class(out) <- "mediate"
     }
     if(long && isMer.y || isMer.m) {
@@ -1520,7 +1513,8 @@ mediate <- function(model.m, model.y, sims = 1000,
                   control.value=control.value, treat.value=treat.value,
                   nobs=n, sims=sims, call=cl,
                   group.m=group.m,group.y=group.y,group.name=group.name,
-                  group.id.m=group.id.m,group.id.y=group.id.y,group.id=group.id)   
+                  group.id.m=group.id.m,group.id.y=group.id.y,group.id=group.id,
+                  robustSE = robustSE, cluster = cluster)  
       class(out) <- "mediate.mer"
     }
     if(!long && isMer.y || isMer.m){
@@ -1552,7 +1546,8 @@ mediate <- function(model.m, model.y, sims = 1000,
                   control.value=control.value, treat.value=treat.value,
                   nobs=n, sims=sims, call=cl,
                   group.m=group.m,group.y=group.y,group.name=group.name,
-                  group.id.m=group.id.m,group.id.y=group.id.y,group.id=group.id)
+                  group.id.m=group.id.m,group.id.y=group.id.y,group.id=group.id,
+                  robustSE = robustSE, cluster = cluster)
       class(out) <- "mediate.mer"
     }
     
@@ -1893,7 +1888,8 @@ mediate <- function(model.m, model.y, sims = 1000,
                   INT=INT, conf.level=conf.level,
                   model.y=model.y, model.m=model.m,
                   control.value=control.value, treat.value=treat.value, 
-                  nobs=n, sims=sims, call=cl)
+                  nobs=n, sims=sims, call=cl,
+                  robustSE = robustSE, cluster = cluster)
     } else {
       out <- list(d0=d0, d1=d1, d0.ci=d0.ci, d1.ci=d1.ci,
                   d0.p=d0.p, d1.p=d1.p,
@@ -1906,7 +1902,8 @@ mediate <- function(model.m, model.y, sims = 1000,
                   INT=INT, conf.level=conf.level,
                   model.y=model.y, model.m=model.m,
                   control.value=control.value, treat.value=treat.value, 
-                  nobs=n, sims=sims, call=cl)
+                  nobs=n, sims=sims, call=cl,
+                  robustSE = robustSE, cluster = cluster)
     }
     class(out) <- "mediate.order"
     out

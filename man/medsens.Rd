@@ -52,10 +52,13 @@ Users should note that computation can take significant time for \code{medsens}.
 \item{conf.level}{the confidence level used.}
 \item{effect.type}{the 'effect.type' argument used.}
 \item{type}{a character string indicating the type of the mediator and outcome models used. Currently either "ct" (linear mediator and outcome models), 'bm' (binary mediator and linear outcome models) or 'bo' (linear mediator and binary outcome models).}
+\item{robustSE}{`TRUE' or `FALSE'.}
+\item{cluster}{the clusters used.}
 }
 
 
 \references{
+Tingley, D., Yamamoto, T., Hirose, K., Imai, K. and Keele, L. (2014). "mediation: R package for Causal Mediation Analysis", Journal of Statistical Software, Vol. 59, No. 5, pp. 1-38. 
 
 Imai, K., Keele, L., Tingley, D. and Yamamoto, T. (2011). Unpacking the Black Box of Causality: Learning about Causal Mechanisms from Experimental and Observational Studies, American Political Science Review, Vol. 105, No. 4 (November), pp. 765-789.
 
@@ -68,6 +71,7 @@ Imai, K., Keele, L., Tingley, D. and Yamamoto, T. (2009) "Causal Mediation Analy
 \author{Dustin Tingley, Harvard University, \email{dtingley@gov.harvard.edu}; 
 Teppei Yamamoto, Massachusetts Institute of Technology, \email{teppei@mit.edu}; 
 Jaquilyn Waddell-Boie, Princeton University, \email{jwaddell@princeton.edu};
+Kentaro Hirose, Princeton University, \email{hirose@princeton.edu};
 Luke Keele, Penn State University, \email{ljk20@psu.edu}; 
 Kosuke Imai, Princeton University, \email{kimai@princeton.edu}. }
  
@@ -81,12 +85,18 @@ Kosuke Imai, Princeton University, \email{kimai@princeton.edu}. }
 
 data(jobs)
 
+####################################################
+# Example 1: Binary treatment 
+####################################################
 # Fit parametric models
 b <- lm(job_seek ~ treat + econ_hard + sex + age, data=jobs)
 c <- lm(depress2 ~ treat + job_seek + econ_hard + sex + age, data=jobs)
 
 # Pass model objects through mediate function
 med.cont <- mediate(b, c, treat="treat", mediator="job_seek", sims=50)
+# med.cont <- mediate(b, c, treat="treat", mediator="job_seek", sims=50, robustSE = T)
+# jobs$cluster <- rep(1:30, each = 30)[-1]
+# med.cont <- mediate(b, c, treat="treat", mediator="job_seek", sims=50, cluster = jobs$cluster)
 
 # Pass mediate output through medsens function
 sens.cont <- medsens(med.cont, rho.by=.1, eps=.01, effect.type="both")
@@ -101,4 +111,21 @@ plot(sens.cont, main="JOBS", ylim=c(-.2,.2))
 # Plot true ACMEs and ADEs as functions of "R square tildes"
 plot(sens.cont, sens.par="R2", r.type="total", sign.prod="positive")
 par(par.orig)
+
+####################################################
+# Example 2: Categorical treatment 
+####################################################
+\dontrun{
+
+# Purely for illustration, think of educ as a ``treatment''
+
+b <- lm(job_seek ~ educ + sex, data=jobs)
+c <- lm(depress2 ~ educ + job_seek + sex, data=jobs)
+
+# compare two categories of educ --- gradwk and somcol
+med.cont <- mediate(b, c, treat="educ", mediator="job_seek", sims=50, 
+                    control.value = "gradwk", treat.value = "somcol")
+sens.cont <- medsens(med.cont, rho.by=.1, eps=.01, effect.type="both")
+summary(sens.cont)
+}
 }

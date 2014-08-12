@@ -127,9 +127,12 @@ The function \code{summary} (i.e., \code{summary.mediate}, \code{summary.mediate
 \item{control.value}{value of the treatment variable used as the control condition.}
 \item{treat.value}{value of the treatment variable used as the treatment condition.}
 \item{nobs}{number of observations in the model frame for 'model.m' and 'model.y'. May differ from the numbers in the original models input to 'mediate' if 'dropobs' was 'TRUE'.}
+\item{robustSE}{`TRUE' or `FALSE'.}
+\item{cluster}{the clusters used.}
 }
 
 \references{
+Tingley, D., Yamamoto, T., Hirose, K., Imai, K. and Keele, L. (2014). "mediation: R package for Causal Mediation Analysis", Journal of Statistical Software, Vol. 59, No. 5, pp. 1-38. 
 
 Imai, K., Keele, L., Tingley, D. and Yamamoto, T. (2011). Unpacking the Black Box of Causality: Learning about Causal Mechanisms from Experimental and Observational Studies, American Political Science Review, Vol. 105, No. 4 (November), pp. 765-789.
 
@@ -194,6 +197,17 @@ contcont.cont <- mediate(b.contT, c.contT, sims=50,
                     treat="treat_cont", mediator="job_seek",
                     treat.value = 4, control.value = -2)
 summary(contcont.cont)
+
+# Categorical treatment 
+\dontrun{
+b <- lm(job_seek ~ educ + sex, data=jobs)
+c <- lm(depress2 ~ educ + job_seek + sex, data=jobs)
+
+# compare two categories of educ --- gradwk and somcol
+model.cat <- mediate(b, c, treat="educ", mediator="job_seek", sims=50, 
+                     control.value = "gradwk", treat.value = "somcol")
+summary(model.cat)
+}
 
 ######################################################
 # Example 2: Binary Outcome and Ordered Mediator

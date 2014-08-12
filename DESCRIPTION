@@ -1,6 +1,6 @@
 Package: mediation
-Version: 4.4
-Date: 2013-12-9
+Version: 4.4.1
+Date: 2014-8-12
 Title: R Package for Causal Mediation Analysis
 Author: Dustin Tingley <dtingley@gov.harvard.edu>,
         Teppei Yamamoto <teppei@mit.edu>,
@@ -16,7 +16,7 @@ LazyLoad: yes
 LazyData: yes
 License: GPL (>= 2)
 URL: http://imai.princeton.edu/projects/mechanisms.html
-Packaged: 2013-12-08 21:37:26 UTC; teppei
+Packaged: 2014-08-12 22:26:32 UTC; teppei
 NeedsCompilation: no
 Repository: CRAN
-Date/Publication: 2013-12-09 00:30:32
+Date/Publication: 2014-08-13 16:02:42
