@@ -381,12 +381,12 @@ mediate <- function(model.m, model.y, sims = 1000,
       }
       
       # Get mean and variance parameters for mediator simulations
-      if(isSurvreg.m && is.null(survreg.distributions[[model.m$dist]]$scale)){
+      if(isSurvreg.m && is.null(survival::survreg.distributions[[model.m$dist]]$scale)){
         MModel.coef <- c(coef(model.m), log(model.m$scale))
         scalesim.m <- TRUE
       } else if(isMer.m){
-        MModel.fixef <- fixef(model.m)
-        MModel.ranef <- ranef(model.m)
+        MModel.fixef <- lme4::fixef(model.m)
+        MModel.ranef <- lme4::ranef(model.m)
         scalesim.m <- FALSE    	           	
       } else {
         MModel.coef <- coef(model.m)
@@ -418,12 +418,12 @@ mediate <- function(model.m, model.y, sims = 1000,
       }
       
       # Get mean and variance parameters for outcome simulations
-      if(isSurvreg.y && is.null(survreg.distributions[[model.y$dist]]$scale)){
+      if(isSurvreg.y && is.null(survival::survreg.distributions[[model.y$dist]]$scale)){
         YModel.coef <- c(coef(model.y), log(model.y$scale))
         scalesim.y <- TRUE  # indicates if survreg scale parameter is simulated
       } else if(isMer.y){
-        YModel.fixef <- fixef(model.y)
-        YModel.ranef <- ranef(model.y)
+        YModel.fixef <- lme4::fixef(model.y)
+        YModel.ranef <- lme4::ranef(model.y)
         scalesim.y <- FALSE    	           	
       } else {
         YModel.coef <- coef(model.y)
@@ -453,7 +453,7 @@ mediate <- function(model.m, model.y, sims = 1000,
       # Draw model coefficients from normal
       
       se.ranef.new <- function (object) {
-          se.bygroup <- ranef(object, condVar = TRUE)
+          se.bygroup <- lme4::ranef(object, condVar = TRUE)
           n.groupings <- length(se.bygroup)
           for (m in 1:n.groupings) {
               vars.m <- attr(se.bygroup[[m]], "postVar")
@@ -471,33 +471,33 @@ mediate <- function(model.m, model.y, sims = 1000,
       }
       
       if(isMer.m){
-          MModel.fixef.vcov <- vcov(model.m)
-          MModel.fixef.sim <- mvrnorm(sims,mu=MModel.fixef,Sigma=MModel.fixef.vcov)
-          Nm.ranef <- ncol(ranef(model.m)[[1]]) 
+          MModel.fixef.vcov <- as.matrix(vcov(model.m))
+          MModel.fixef.sim <- rmvnorm(sims,mean=MModel.fixef,sigma=MModel.fixef.vcov)
+          Nm.ranef <- ncol(lme4::ranef(model.m)[[1]]) 
           MModel.ranef.sim <- vector("list",Nm.ranef)
           for (d in 1:Nm.ranef){
-              MModel.ranef.sim[[d]] <- matrix(rnorm(sims*nrow(ranef(model.m)[[1]]), mean = ranef(model.m)[[1]][,d], sd = se.ranef.new(model.m)[[1]][,d]), nrow = sims, byrow = TRUE)
+              MModel.ranef.sim[[d]] <- matrix(rnorm(sims*nrow(lme4::ranef(model.m)[[1]]), mean = lme4::ranef(model.m)[[1]][,d], sd = se.ranef.new(model.m)[[1]][,d]), nrow = sims, byrow = TRUE)
           }
       } else {
           if(sum(is.na(MModel.coef)) > 0){
               stop("NA in model coefficients; rerun models with nonsingular design matrix")
           }
-          MModel <- mvrnorm(sims, mu=MModel.coef, Sigma=MModel.var.cov)
+          MModel <- rmvnorm(sims, mean=MModel.coef, sigma=MModel.var.cov)
       }
       
       if(isMer.y){
-          YModel.fixef.vcov <- vcov(model.y)
-          YModel.fixef.sim <- mvrnorm(sims,mu=YModel.fixef,Sigma=YModel.fixef.vcov)
-          Ny.ranef <- ncol(ranef(model.y)[[1]]) 
+          YModel.fixef.vcov <- as.matrix(vcov(model.y))
+          YModel.fixef.sim <- rmvnorm(sims,mean=YModel.fixef,sigma=YModel.fixef.vcov)
+          Ny.ranef <- ncol(lme4::ranef(model.y)[[1]]) 
           YModel.ranef.sim <- vector("list",Ny.ranef)
           for (d in 1:Ny.ranef){
-              YModel.ranef.sim[[d]] <- matrix(rnorm(sims*nrow(ranef(model.y)[[1]]), mean = ranef(model.y)[[1]][,d], sd = se.ranef.new(model.y)[[1]][,d]), nrow = sims, byrow = TRUE)
+              YModel.ranef.sim[[d]] <- matrix(rnorm(sims*nrow(lme4::ranef(model.y)[[1]]), mean = lme4::ranef(model.y)[[1]][,d], sd = se.ranef.new(model.y)[[1]][,d]), nrow = sims, byrow = TRUE)
           }
       } else {
           if(sum(is.na(YModel.coef)) > 0){
               stop("NA in model coefficients; rerun models with nonsingular design matrix")
           }
-          YModel <- mvrnorm(sims, mu=YModel.coef, Sigma=YModel.var.cov)
+          YModel <- rmvnorm(sims, mean=YModel.coef, sigma=YModel.var.cov)
       } 
       
       if(robustSE && (isSurvreg.m | isSurvreg.y)){
@@ -640,7 +640,7 @@ mediate <- function(model.m, model.y, sims = 1000,
         
         ### Case I-1-d: Survreg
       } else if(isSurvreg.m){
-        dd <- survreg.distributions[[model.m$dist]]
+        dd <- survival::survreg.distributions[[model.m$dist]]
         if (is.null(dd$itrans)){
           itrans <- function(x) x
         } else {
@@ -672,7 +672,7 @@ mediate <- function(model.m, model.y, sims = 1000,
       } else if(isMer.m && getCall(model.m)[[1]]=="lmer"){
         M.RANEF1 <- M.RANEF0 <- 0
         for (d in 1:Nm.ranef){
-          name <- colnames(ranef(model.m)[[1]])[d]
+          name <- colnames(lme4::ranef(model.m)[[1]])[d]
           if(name == "(Intercept)"){
             var1 <- var0 <- matrix(1,sims,n) ### RE intercept
           } else if(name == treat){  ### RE slope of treat
@@ -711,7 +711,7 @@ mediate <- function(model.m, model.y, sims = 1000,
       } else if(isMer.m && getCall(model.m)[[1]]=="glmer"){
         M.RANEF1 <-M.RANEF0 <- 0 ### 1=RE for M(1); 0=RE for M(0)
         for (d in 1:Nm.ranef){
-          name <- colnames(ranef(model.m)[[1]])[d]
+          name <- colnames(lme4::ranef(model.m)[[1]])[d]
           if(name == "(Intercept)"){
             var1 <- var0 <- matrix(1,sims,n) ### RE intercept
           } else if(name == treat){ ### RE slope of treat
@@ -787,7 +787,7 @@ mediate <- function(model.m, model.y, sims = 1000,
         Y.RANEF1 <- Y.RANEF2 <- Y.RANEF3 <- Y.RANEF4 <- 0
         ### 1=RE for Y(1,M(1)); 2=RE for Y(1,M(0)); 3=RE for Y(0,M(1)); 4=RE for Y(0,M(0))
         for (d in 1:Ny.ranef){
-          name <- colnames(ranef(model.y)[[1]])[d]
+          name <- colnames(lme4::ranef(model.y)[[1]])[d]
           if(name == "(Intercept)"){
             var1 <- var2 <- var3 <- var4 <- matrix(1,sims,n)
           } else if(name == treat){
@@ -918,7 +918,7 @@ mediate <- function(model.m, model.y, sims = 1000,
           Pr1 <- apply(Pr1, 2, model.y$family$linkinv)
           Pr0 <- apply(Pr0, 2, model.y$family$linkinv)
         } else if(isSurvreg.y){
-          dd <- survreg.distributions[[model.y$dist]]
+          dd <- survival::survreg.distributions[[model.y$dist]]
           if (is.null(dd$itrans)){
             itrans <- function(x) x
           } else {
@@ -1201,7 +1201,7 @@ mediate <- function(model.m, model.y, sims = 1000,
           
           ### Case I-2-e: Survreg
         } else if(isSurvreg.m){
-          dd <- survreg.distributions[[new.fit.M$dist]]
+          dd <- survival::survreg.distributions[[new.fit.M$dist]]
           if (is.null(dd$itrans)){
             itrans <- function(x) x
           } else {
@@ -1725,7 +1725,7 @@ mediate <- function(model.m, model.y, sims = 1000,
         
         ### Case I-2-e: Survreg
       } else if(isSurvreg.m){
-        dd <- survreg.distributions[[new.fit.M$dist]]
+        dd <- survival::survreg.distributions[[new.fit.M$dist]]
         if (is.null(dd$itrans)){
           itrans <- function(x) x
         } else {
@@ -1853,11 +1853,14 @@ mediate <- function(model.m, model.y, sims = 1000,
         z1.ci <- BC.CI(zeta.1)
         z0.ci <- BC.CI(zeta.0)
     } else {
-        d0.ci <- quantile(delta.0, c(low,high), na.rm=TRUE)
-        d1.ci <- quantile(delta.1, c(low,high), na.rm=TRUE)
-        tau.ci <- quantile(tau, c(low,high), na.rm=TRUE)
-        z1.ci <- quantile(zeta.1, c(low,high), na.rm=TRUE)
-        z0.ci <- quantile(zeta.0, c(low,high), na.rm=TRUE)
+        CI <- function(theta){
+            return(quantile(theta, c(low, high), na.rm = TRUE))
+        }
+        d0.ci <- apply(delta.0, 2, CI)
+        d1.ci <- apply(delta.1, 2, CI)
+        tau.ci <- apply(tau, 2, CI)
+        z1.ci <- apply(zeta.1, 2, CI)
+        z0.ci <- apply(zeta.0, 2, CI)
     }
     
     # p-values
