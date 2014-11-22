@@ -1,6 +1,6 @@
-606445ef2c04e61bcc3dd4939ce5b164 *ChangeLog
-7e4abd0f74134177c4635119fb2d57a8 *DESCRIPTION
-46dc1f2e2916f66b4dbf2f5961facc70 *NAMESPACE
+32522476824feff020c2e3532e668323 *ChangeLog
+d47e0cbb0dd5835639b72ce01d4373c8 *DESCRIPTION
+b349b900692ef7a961c301fa3a35b46c *NAMESPACE
 6428966d7c0ebaa66242e7ac7c2c569c *R/amelidiate.R
 9a1184aa2151c103882c8272f314578e *R/ivmediate.R
 a4065584399986f82005738c0f02b3ed *R/mediate.R
@@ -8,9 +8,9 @@ a4065584399986f82005738c0f02b3ed *R/mediate.R
 3f2ed3dd76364726f0625f5b29279801 *R/mediations.R
 d84950c6b9af276c1ecd50e3796ee146 *R/medsens.R
 3cc0c896fee766e8114367c7688b3b1a *R/medtests.R
-1e9f5bdab09e9b6c9c75f1af9cd5c4f2 *R/multimed.R
+22d4eef8e06b9cd01778544fdb999876 *R/multimed.R
 5f73be6bb2b76ab735b65bb127bcc8ba *R/onAttach.R
-4773c49c80f09cad1f2d02473da0b3ac *build/vignette.rds
+6f570d8a16d6b88a821e2e87af006c29 *build/vignette.rds
 bbac9470dd145a676312648c2bd1964b *data/CEDdata.RData
 3ddbeb00443d1f25c264bfa0b0e774a0 *data/boundsdata.RData
 4d572a10a4ee5eb577307aefb70285a5 *data/framing.RData
@@ -21,10 +21,10 @@ bbac9470dd145a676312648c2bd1964b *data/CEDdata.RData
 1ef19ebec1b5b43c9e0e0d2f807be575 *demo/mediation-code.R
 cf7fc10597af101aad83965b0191aa38 *inst/CITATION
 1901d837efa7128bbcbe9994a7bff145 *inst/doc/mediation-old.Rnw
-571333b0890a4c53590cc4979d5ff572 *inst/doc/mediation-old.pdf
+f2f026ee8aeb386d73745d8846c49f82 *inst/doc/mediation-old.pdf
 4352ad4a100617f0671c55f4ebe4811f *inst/doc/mediation.R
-44dc60209e63eec04b7dfabcee0668f0 *inst/doc/mediation.Rnw
-c9e0bfd1e961dcbdf0363718c7a1cb42 *inst/doc/mediation.pdf
+cd83581a6af85e15d1586f47b5e512eb *inst/doc/mediation.Rnw
+a131833bc4605eecbe9d5d17db168c13 *inst/doc/mediation.pdf
 6c7c54f96f62c789f789a516cfef1807 *man/CEDdata.Rd
 93e92150e5562b43133211b74e333fbc *man/amelidiate.Rd
 8e06c99a6a52fe15979c801e49f38668 *man/boundsdata.Rd
@@ -38,7 +38,7 @@ bb7ce9f0c377f751f665022f0041fdf4 *man/mediate.pd.Rd
 b1f9587d765e555396ab0bf8c0ddcf43 *man/mediate.sed.Rd
 d5beb33fc2b7d3370d04c4ae50290aaf *man/mediations.Rd
 03a3ac3a8701f061ac6343c3152ba5cc *man/medsens.Rd
-2bfcbe433766cfb0c268b4b54ae4bf5e *man/multimed.Rd
+253e5d02cd51d1c09a2a85d43503ea67 *man/multimed.Rd
 d62a9e9d437ea8f789c91e4e8e8e7c49 *man/plot.ivmediate.Rd
 2725f30f5c0b74100c3652ce30fe11d4 *man/plot.mediate.Rd
 2881c7cea119d1f0a9886b150427c872 *man/plot.mediate.mer.Rd
@@ -63,9 +63,9 @@ fffd458140ce08311dff678b1e76c655 *vignettes/BinaryMediator-Sensitivity-Rpaper.pd
 d7ede4bb5f2f380c31479962cf776ac0 *vignettes/mediation-chart.jpg
 1901d837efa7128bbcbe9994a7bff145 *vignettes/mediation-old.Rnw
 f92a4039fdc987cb8df952fd285efe49 *vignettes/mediation-old.bib
-44dc60209e63eec04b7dfabcee0668f0 *vignettes/mediation.Rnw
+cd83581a6af85e15d1586f47b5e512eb *vignettes/mediation.Rnw
 598997af5e52d8a1cb66bec31d9427f5 *vignettes/mediationR2.bib
 e64cde1b99889829c0a2124b57233f63 *vignettes/natbib.bst
 35fa4450495e75d402f3b6a3d4b65d14 *vignettes/plot-mediate-int.pdf
 9ee3c146e18b42ed0c8236818c9318b8 *vignettes/plot-mediate.pdf
-2884bfaaa7477e20b64f8ef215034259 *vignettes/v59i05.bib
+e71542eeb4eab704b8951bb56c01b8ac *vignettes/v59i05.bib
