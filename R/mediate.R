@@ -126,6 +126,11 @@ mediate <- function(model.m, model.y, sims = 1000,
   # Record family of model.m if glm
   if(isGlm.m){
     FamilyM <- model.m$family$family
+}
+
+  # Record family of model.m if glmer
+  if(isMer.m && getCall(model.m)[[1]] == "glmer"){
+    FamilyM <- M.fun$family
   }
   
   # Record vfamily of model.y if vglm (currently only tobit)
@@ -280,7 +285,7 @@ mediate <- function(model.m, model.y, sims = 1000,
   if(!is.null(weights.m) && isGlm.m && FamilyM == "binomial"){
     message("weights taken as sampling weights, not total number of trials")
   }
-  if(!is.null(weights.m) && isMer.m && FamilyM == "binomial"){
+  if(!is.null(weights.m) && isMer.m && getCall(model.m)[[1]] == "glmer" && FamilyM == "binomial"){
     message("weights taken as sampling weights, not total number of trials")
   }
   if(is.null(weights.m)){

@@ -10,7 +10,7 @@
 
 \method{plot}{multimed}(x, type = c("point", "sigma", "R2-residual", "R2-total"),
      tgroup = c("average", "treated", "control"),
-     effect.type = c("indirect", "total"),
+     effect.type = c("indirect", "direct", "total"),
      ask = prod(par("mfcol")) < nplots,
      xlab = NULL, ylab = NULL, xlim = NULL, ylim = NULL, main = NULL,
      lwd = par("lwd"), pch = par("pch"), cex = par("cex"), las = par("las"),
@@ -55,15 +55,19 @@ Imai, K. and Yamamoto, T. (2012) Identification and Sensitivity Analysis for Mul
 
 \examples{
 
+\dontrun{
+
 # Replicates Figure 3 (right column) of Imai and Yamamoto (2012)
 # Note: # of bootstrap samples set low for quick illustration
 
 data(framing)
 Xnames <- c("age", "educ", "gender", "income")
 res <- multimed("immigr", "emo", "p_harm", "treat", Xnames,
-               data = framing, sims = 100)
+               data = framing, sims = 10)
 summary(res)
 plot(res, type = "point")
 plot(res, type = c("sigma", "R2-total"), tgroup = "average")
+
+}
 
 }
