@@ -399,27 +399,30 @@ mediate <- function(model.m, model.y, sims = 1000,
       }
       
       if(isOrdered.m){
-        if(is.null(model.m$Hess)){
-          cat("Mediator model object does not contain 'Hessian';")
-        }
-        k <- length(MModel.coef)
-        MModel.var.cov <- vcov(model.m)[(1:k),(1:k)]
-      } else if(isSurvreg.m){
-        MModel.var.cov <- vcov(model.m)
-      } else {
-        if(robustSE){
-          MModel.var.cov <- vcovHC(model.m, ...)
-        } else if(!is.null(cluster)){
-          if(nrow(m.data)!=length(cluster)){
-            warning("length of cluster vector differs from # of obs for mediator model")
+          if(is.null(model.m$Hess)){
+              cat("Mediator model object does not contain 'Hessian';")
           }
-          dta <- merge(m.data, as.data.frame(cluster), sort=FALSE,
-                       by="row.names")
-          fm <- update(model.m, data=dta)
-          MModel.var.cov <- getvcov(dta, fm, dta[,ncol(dta)])
-        } else {
+          k <- length(MModel.coef)
+          MModel.var.cov <- vcov(model.m)[(1:k),(1:k)]
+      } else if(isSurvreg.m){
           MModel.var.cov <- vcov(model.m)
-        }
+      } else {
+          if(robustSE & !isMer.m){
+              MModel.var.cov <- vcovHC(model.m, ...)
+          } else if(robustSE & isMer.m){
+              MModel.var.cov <- vcov(model.m)
+              warning("robustSE does not support mer class: non-robust SEs are computed for model.m")
+          } else if(!is.null(cluster)){
+              if(nrow(m.data)!=length(cluster)){
+                  warning("length of cluster vector differs from # of obs for mediator model")
+              }
+              dta <- merge(m.data, as.data.frame(cluster), sort=FALSE,
+                           by="row.names")
+              fm <- update(model.m, data=dta)
+              MModel.var.cov <- getvcov(dta, fm, dta[,ncol(dta)])
+          } else {
+              MModel.var.cov <- vcov(model.m)
+          }
       }
       
       # Get mean and variance parameters for outcome simulations
@@ -436,23 +439,26 @@ mediate <- function(model.m, model.y, sims = 1000,
       }
       
       if(isRq.y){
-        YModel.var.cov <- summary(model.y, covariance=TRUE)$cov
+          YModel.var.cov <- summary(model.y, covariance=TRUE)$cov
       } else if(isSurvreg.y){
-        YModel.var.cov <- vcov(model.y)
-      } else {
-        if(robustSE){
-          YModel.var.cov <- vcovHC(model.y, ...)
-        } else if(!is.null(cluster)){
-          if(nrow(y.data)!=length(cluster)){
-            warning("length of cluster vector differs from # of obs for outcome model")
-          }
-          dta <- merge(y.data, as.data.frame(cluster), sort=FALSE,
-                       by="row.names")
-          fm <- update(model.y, data=dta)
-          YModel.var.cov <- getvcov(dta, fm, dta[,ncol(dta)])
-        } else {
           YModel.var.cov <- vcov(model.y)
-        }
+      } else {
+          if(robustSE & !isMer.y){
+              YModel.var.cov <- vcovHC(model.y, ...)
+          } else if(robustSE & isMer.y){
+              YModel.var.cov <- vcov(model.y)
+              warning("robustSE does not support mer class: non-robust SEs are computed for model.y")
+          } else if(!is.null(cluster)){
+              if(nrow(y.data)!=length(cluster)){
+                  warning("length of cluster vector differs from # of obs for outcome model")
+              }
+              dta <- merge(y.data, as.data.frame(cluster), sort=FALSE,
+                           by="row.names")
+              fm <- update(model.y, data=dta)
+              YModel.var.cov <- getvcov(dta, fm, dta[,ncol(dta)])
+          } else {
+              YModel.var.cov <- vcov(model.y)
+          }
       }
       
       # Draw model coefficients from normal
@@ -704,7 +710,7 @@ mediate <- function(model.m, model.y, sims = 1000,
           M.RANEF1 <- M.ranef*var1 + M.RANEF1   # sum of (random effects*corresponding covarites)  
           M.RANEF0 <- M.ranef*var0 + M.RANEF0
         }
-        sigma <- lme4::sigma(model.m)
+        sigma <- attr(lme4::VarCorr(model.m), "sc")        
         error <- rnorm(sims*n, mean=0, sd=sigma)
         muM1 <- tcrossprod(MModel.fixef.sim, mmat.t) + M.RANEF1
         muM0 <- tcrossprod(MModel.fixef.sim, mmat.c) + M.RANEF0
@@ -1345,7 +1351,7 @@ mediate <- function(model.m, model.y, sims = 1000,
             z <- qnorm(z.inv)
             U <- (sims - 1) * (mean(theta) - theta)
             top <- sum(U^3)
-            under <- (1/6) * (sum(U^2))^{3/2}
+            under <- 6 * (sum(U^2))^{3/2}
             a <- top / under
             lower.inv <-  pnorm(z + (z + qnorm(low))/(1 - a * (z + qnorm(low))))
             lower2 <- lower <- quantile(theta, lower.inv)
@@ -1481,7 +1487,7 @@ mediate <- function(model.m, model.y, sims = 1000,
                   robustSE = robustSE, cluster = cluster)
       class(out) <- "mediate"
     }
-    if(long && isMer.y || isMer.m) {
+    if(long && (isMer.y || isMer.m)) {
       out <- list(d0=d0, d1=d1, d0.ci=d0.ci, d1.ci=d1.ci,
                   d0.p=d0.p, d1.p=d1.p,
                   d0.sims=delta.0, d1.sims=delta.1,
@@ -1522,7 +1528,7 @@ mediate <- function(model.m, model.y, sims = 1000,
                   robustSE = robustSE, cluster = cluster)  
       class(out) <- "mediate.mer"
     }
-    if(!long && isMer.y || isMer.m){
+    if(!long && (isMer.y || isMer.m)){
       out <- list(d0=d0, d1=d1, d0.ci=d0.ci, d1.ci=d1.ci,
                   d0.p=d0.p, d1.p=d1.p,
                   z0=z0, z1=z1, z0.ci=z0.ci, z1.ci=z1.ci,
@@ -1844,7 +1850,7 @@ mediate <- function(model.m, model.y, sims = 1000,
             z <- qnorm(z.inv)
             U <- (sims - 1) * (mean(theta) - theta)
             top <- sum(U^3)
-            under <- (1/6) * (sum(U^2))^{3/2}
+            under <- 6 * (sum(U^2))^{3/2}
             a <- top / under
             lower.inv <-  pnorm(z + (z + qnorm(low))/(1 - a * (z + qnorm(low))))
             lower2 <- lower <- quantile(theta, lower.inv)
