@@ -84,7 +84,7 @@ mediate <- function(model.m, model.y, sims = 1000,
   isMer.m <- inherits(model.m, "merMod") # Note lmer and glmer do not inherit "lm" and "glm"
   
   # Record family and link of model.m if glmer 
-  if(isMer.m && getCall(model.m)[[1]] == "glmer"){
+  if(isMer.m && class(model.m)[[1]] == "glmerMod"){
     m.family <- as.character(model.m@call$family)
     if(m.family[1] == "binomial" && (is.na(m.family[2]) || m.family[2] == "logit")){
       M.fun <- binomial(link = "logit")
@@ -104,7 +104,7 @@ mediate <- function(model.m, model.y, sims = 1000,
   }
   
   # Record family and link of model.y if glmer 
-  if(isMer.y && getCall(model.y)[[1]] == "glmer"){
+  if(isMer.y && class(model.y)[[1]] == "glmerMod"){
     y.family <- as.character(model.y@call$family)
     if(y.family[1] == "binomial" && (is.na(y.family[2]) || y.family[2] == "logit")){
       Y.fun <- binomial(link = "logit")
@@ -129,7 +129,7 @@ mediate <- function(model.m, model.y, sims = 1000,
 }
 
   # Record family of model.m if glmer
-  if(isMer.m && getCall(model.m)[[1]] == "glmer"){
+  if(isMer.m && class(model.m)[[1]] == "glmerMod"){
     FamilyM <- M.fun$family
   }
   
@@ -251,7 +251,11 @@ mediate <- function(model.m, model.y, sims = 1000,
       group.id <- y.data[,group.y]
       group.name <- group.y
       Y.ID<- sort(unique(group.id))
-      M.ID <- sort(as.vector(data.matrix(m.data[group.y])))
+      if(is.character(m.data[,group.y])){
+          M.ID <- sort(as.factor(m.data[,group.y]))
+      } else {
+          M.ID <- sort(as.vector(data.matrix(m.data[group.y])))
+      }
       if(length(Y.ID) != length(M.ID)){
         stop("groups do not match between mediator and outcome models")
       } else {
@@ -264,7 +268,7 @@ mediate <- function(model.m, model.y, sims = 1000,
     group.id <- NULL
     group.name <- NULL
   }
-  
+
   
   # Numbers of observations and categories
   n.m <- nrow(m.data)
@@ -285,7 +289,7 @@ mediate <- function(model.m, model.y, sims = 1000,
   if(!is.null(weights.m) && isGlm.m && FamilyM == "binomial"){
     message("weights taken as sampling weights, not total number of trials")
   }
-  if(!is.null(weights.m) && isMer.m && getCall(model.m)[[1]] == "glmer" && FamilyM == "binomial"){
+  if(!is.null(weights.m) && isMer.m && class(model.m)[[1]] == "glmerMod" && FamilyM == "binomial"){
     message("weights taken as sampling weights, not total number of trials")
   }
   if(is.null(weights.m)){
@@ -680,7 +684,7 @@ mediate <- function(model.m, model.y, sims = 1000,
         rm(error)
         
         ### Case I-1-e: Linear Mixed Effect			
-      } else if(isMer.m && getCall(model.m)[[1]]=="lmer"){
+      } else if(isMer.m && class(model.m)[[1]]=="lmerMod"){
         M.RANEF1 <- M.RANEF0 <- 0
         for (d in 1:Nm.ranef){
           name <- colnames(lme4::ranef(model.m)[[1]])[d]
@@ -719,7 +723,7 @@ mediate <- function(model.m, model.y, sims = 1000,
         rm(error)          	
         
         ### Case I-1-f: Generalized Linear Mixed Effect                  	
-      } else if(isMer.m && getCall(model.m)[[1]]=="glmer"){
+      } else if(isMer.m && class(model.m)[[1]]=="glmerMod"){
         M.RANEF1 <-M.RANEF0 <- 0 ### 1=RE for M(1); 0=RE for M(0)
         for (d in 1:Nm.ranef){
           name <- colnames(lme4::ranef(model.m)[[1]])[d]
@@ -766,8 +770,12 @@ mediate <- function(model.m, model.y, sims = 1000,
 
       ### group-level mediator : J -> NJ
       if(isMer.y & !isMer.m){
-        J <- nrow(m.data)
-        group.id.m <- as.vector(data.matrix(m.data[group.y]))
+          J <- nrow(m.data)
+          if(is.character(m.data[,group.y])){
+              group.id.m <- as.factor(m.data[,group.y])
+          } else {
+              group.id.m <- as.vector(data.matrix(m.data[group.y]))
+          }
         v1 <- v0 <- matrix(NA, sims, length(group.id.y))
         num.m <- 1:J
         num.y <- 1:length(group.id.y)
@@ -795,25 +803,34 @@ mediate <- function(model.m, model.y, sims = 1000,
       effects.tmp <- array(NA, dim = c(n, sims, 4))
 
       if(isMer.y){
-        Y.RANEF1 <- Y.RANEF2 <- Y.RANEF3 <- Y.RANEF4 <- 0
-        ### 1=RE for Y(1,M(1)); 2=RE for Y(1,M(0)); 3=RE for Y(0,M(1)); 4=RE for Y(0,M(0))
-        for (d in 1:Ny.ranef){
-          name <- colnames(lme4::ranef(model.y)[[1]])[d]
-          if(name == "(Intercept)"){
-            var1 <- var2 <- var3 <- var4 <- matrix(1,sims,n)
-          } else if(name == treat){
-            var1 <- matrix(1,sims,n)
-            var2 <- matrix(1,sims,n)
-            var3 <- matrix(0,sims,n)
-            var4 <- matrix(0,sims,n)
-          } else if(name == mediator){
-            var1 <- PredictM1
-            var2 <- PredictM0
-            var3 <- PredictM1
-            var4 <- PredictM0
-          } else {
-            var1 <- var2 <- var3 <- var4 <- matrix(data.matrix(y.data[name]),sims,n,byrow=T)
-          }    
+          Y.RANEF1 <- Y.RANEF2 <- Y.RANEF3 <- Y.RANEF4 <- 0
+### 1=RE for Y(1,M(1)); 2=RE for Y(1,M(0)); 3=RE for Y(0,M(1)); 4=RE for Y(0,M(0))
+          for (d in 1:Ny.ranef){
+              name <- colnames(lme4::ranef(model.y)[[1]])[d]
+              if(name == "(Intercept)"){
+                  var1 <- var2 <- var3 <- var4 <- matrix(1,sims,n)
+              } else if(name == treat){
+                  var1 <- matrix(1,sims,n)
+                  var2 <- matrix(1,sims,n)
+                  var3 <- matrix(0,sims,n)
+                  var4 <- matrix(0,sims,n)
+              } else if(name == mediator){
+                  var1 <- PredictM1
+                  var2 <- PredictM0
+                  var3 <- PredictM1
+                  var4 <- PredictM0
+              } else {
+                  if(name %in% colnames(y.data)){
+                      var1 <- var2 <- var3 <- var4 <- matrix(data.matrix(y.data[name]),sims,n,byrow=T)
+                  } else {
+                      int.term.name <- strsplit(name, ":")[[1]]
+                      int.term <- rep(1, nrow(y.data))
+                      for (p in 1:length(int.term.name)){
+                          int.term <- y.data[int.term.name[p]][[1]] * int.term
+                      }
+                      var1 <- var2 <- var3 <- var4 <- matrix(int.term,sims,n,byrow=T)   
+                  }
+              } 
           Y.ranef<-matrix(NA,sims,n)
           YModel.ranef.sim.d <- YModel.ranef.sim[[d]]
           Z <- data.frame(YModel.ranef.sim.d)
@@ -937,7 +954,7 @@ mediate <- function(model.m, model.y, sims = 1000,
           }
           Pr1 <- apply(Pr1, 2, itrans)
           Pr0 <- apply(Pr0, 2, itrans)
-        } else if(isMer.y && getCall(model.y)[[1]] == "glmer"){
+        } else if(isMer.y && class(model.y)[[1]] == "glmerMod"){
           Pr1 <- apply(Pr1, 2, Y.fun$linkinv)
           Pr0 <- apply(Pr0, 2, Y.fun$linkinv)                	
         }
