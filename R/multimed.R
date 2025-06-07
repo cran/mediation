@@ -217,13 +217,13 @@ multimed <- function(outcome, med.main, med.alt = NULL, treat,
                    parallel = subset(data, data[[experiment]] == 1))
 
     if(is.null(weight)){
-        ETM2 <- mean(data.1[,treat] * data.1[,med.main]^2)
+        ETM2 <- mean(data.1[[treat]] * data.1[[med.main]]^2)
         model.y <- lm(f.y, data=data.1)
-        VY <- var(data.1[,outcome])
+        VY <- var(data.1[[outcome]])
     } else {
-        ETM2 <- weighted.mean(data.1[,treat] * data.1[,med.main]^2, w = data.1[, weight])
-        model.y <- lm(f.y, data=data.1, weights = data.1[, weight])
-        VY <- Hmisc::wtd.var(data.1[, outcome], weights = data.1[, weight])
+        ETM2 <- weighted.mean(data.1[[treat]] * data.1[[med.main]]^2, w = data.1[[weight]])
+        model.y <- lm(f.y, data=data.1, weights = data.1[[weight]])
+        VY <- Hmisc::wtd.var(data.1[[outcome]], weights = data.1[[weight]])
     }
     sigma <- summary(model.y)$sigma * sqrt(R2.s/ETM2)
 
@@ -263,9 +263,9 @@ multimed <- function(outcome, med.main, med.alt = NULL, treat,
               }
           }
       } else {
-          wgt <- data.b[, weight]
-          wgt1 <- data.b.1[, weight]
-          wgt0 <- data.b.0[, weight]
+          wgt <- data.b[[weight]]
+          wgt1 <- data.b.1[[weight]]
+          wgt0 <- data.b.0[[weight]]
 
           model.y <- lm(f.y, weights = wgt1, data=data.b.1)
           model.ytot <- lm(f.ytot, weights = wgt0, data=data.b.0)
@@ -343,9 +343,9 @@ multimed <- function(outcome, med.main, med.alt = NULL, treat,
       ACME.0.up.o <- tau.o - ADE.1.lo.o
       
       if(is.null(weight)){
-          P <- mean(data.b[,treat])
+          P <- mean(data.b[[treat]])
       } else { ### data.b -> wgt
-          P <- weighted.mean(data.b[,treat], w = wgt)
+          P <- weighted.mean(data.b[[treat]], w = wgt)
       }
       ACME.ave.lo.o <- P * ACME.1.lo.o + (1-P) * ACME.0.lo.o
       ACME.ave.up.o <- P * ACME.1.up.o + (1-P) * ACME.0.up.o
@@ -369,9 +369,9 @@ multimed <- function(outcome, med.main, med.alt = NULL, treat,
       ACME.0.up[,b] <- tau[b] - ADE.1.lo[,b]
       
       if(is.null(weight)){
-          P <- mean(data.b[,treat])
+          P <- mean(data.b[[treat]])
       } else { ### data.b -> wgt
-          P <- weighted.mean(data.b[,treat], w = wgt)
+          P <- weighted.mean(data.b[[treat]], w = wgt)
       }
       ACME.ave.lo[,b] <- P * ACME.1.lo[,b] + (1-P) * ACME.0.lo[,b]
       ACME.ave.up[,b] <- P * ACME.1.up[,b] + (1-P) * ACME.0.up[,b]
@@ -499,7 +499,7 @@ print.summary.multimed <- function(x, ...){
   colnames(cmat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                           paste(clp, "% CI Upper", sep=""))
   rownames(cmat) <- c("ACME (treated)", "ACME (control)", "ACME (average)", "ADE (treated)", "ADE (control)", "ADE (average)", "Total Effect")
-  printCoefmat(cmat[,1:3], digits=3)
+  printCoefmat(cmat[,1:3], tst.ind=NULL)
   cat("\n")
 
   cat("Sensitivity Analysis: \n")
@@ -518,7 +518,7 @@ print.summary.multimed <- function(x, ...){
                         x$R2star[ind.d.ave.b], x$R2star[ind.d.ave.c], x$R2tilde[ind.d.ave.b], x$R2tilde[ind.d.ave.c]))
   colnames(smat) <- c("sigma(bounds)", "sigma(CI)", "R2s(bounds)", "R2s(CI)", "R2t(bounds)", "R2t(CI)")
   rownames(smat) <- c("ACME (treated)", "ACME (control)", "ACME (average)")
-  printCoefmat(smat[,1:6], digits=3)
+  printCoefmat(smat[,1:6], tst.ind=NULL)
 
   cat("Values of the sensitivity parameters at which ADE first crosses zero:\n")
   ind.z1.b <- sum(sign(x$z1.lb) * sign(x$z1.ub) > 0) + 1
@@ -535,7 +535,7 @@ print.summary.multimed <- function(x, ...){
                         x$R2star[ind.z.ave.b], x$R2star[ind.z.ave.c], x$R2tilde[ind.z.ave.b], x$R2tilde[ind.z.ave.c]))
   colnames(smat) <- c("sigma(bounds)", "sigma(CI)", "R2s(bounds)", "R2s(CI)", "R2t(bounds)", "R2t(CI)")
   rownames(smat) <- c("ADE (treated)", "ADE (control)", "ADE (average)")
-  printCoefmat(smat[,1:6], digits=3)
+  printCoefmat(smat[,1:6], tst.ind=NULL)
   cat("\n")
 
   invisible(x)

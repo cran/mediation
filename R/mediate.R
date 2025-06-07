@@ -70,7 +70,7 @@
 #'   variable must be explicitly supplied in the `outcome' argument. This is due
 #'   to the fact that 'survreg' objects do not contain that information in an
 #'   easily extractable form. It should also be noted that for
-#'   \code{\link{survreg}} models, the \code{\link{Surv}} function must be
+#'   \code{\link[survival]{survreg}} models, the \code{\link[survival]{Surv}} function must be
 #'   directly used in the model formula in the call to the survreg function, and
 #'   that censoring types requiring more than two arguments to Surv (e.g.,
 #'   interval censoring) are not currently supported by 'mediate'.
@@ -85,8 +85,8 @@
 #'   The 'control' argument must be provided when 'gam' is used for the outcome 
 #'   model and user wants to allow ACME and ADE to vary as functions of the 
 #'   treatment (i.e., to relax the "no interaction" assumption). Note that the 
-#'   outcome model must be fitted via package \code{\link{mgcv}} with
-#'   appropriate formula using \code{\link{s}} constructs (see Imai et al. 2009
+#'   outcome model must be fitted via package \code{mgcv} with
+#'   appropriate formula using \code{\link[mgcv]{s}} constructs (see Imai et al. 2009
 #'   in the references). For other model types, the interaction can be allowed
 #'   by including an interaction term between \eqn{T} and \eqn{M} in the linear 
 #'   predictor of the outcome model. As of version 3.0, the 'INT' argument is 
@@ -516,15 +516,15 @@ mediate <- function(model.m, model.y, sims = 1000,
     newdata <- newdata[,-1L]
     rm(odata.m, odata.y)
     
-    call.m <- getCall(model.m)
-    call.y <- getCall(model.y)
+    Call.M <- getCall(model.m)
+    Call.Y <- getCall(model.y)
     
-    call.m$data <- call.y$data <- newdata
+    Call.M$data <- Call.Y$data <- newdata
     if(c("(weights)") %in% names(newdata)){
-      call.m$weights <- call.y$weights <- model.weights(newdata)
+      Call.M$weights <- Call.Y$weights <- model.weights(newdata)
     }
-    model.m <- eval.parent(call.m)
-    model.y <- eval.parent(call.y)
+    model.m <- eval.parent(Call.M)
+    model.y <- eval.parent(Call.Y)
     if(!is.null(cluster)){
       cluster <- factor(newdata[, ncol(newdata)])  # factor drops missing levels
     }
@@ -1343,8 +1343,8 @@ mediate <- function(model.m, model.y, sims = 1000,
           PredictMt <- PredictM1[j,] * tt[3] + PredictM0[j,] * (1 - tt[3])
           PredictMc <- PredictM1[j,] * tt[4] + PredictM0[j,] * (1 - tt[4])
           if(isFactorM) {
-            pred.data.t[,mediator] <- factor(PredictMt, levels=1:m, labels=m.levels)
-            pred.data.c[,mediator] <- factor(PredictMc, levels=1:m, labels=m.levels)
+            pred.data.t[,mediator] <- factor(PredictMt, levels=0:(m-1), labels=m.levels)
+            pred.data.c[,mediator] <- factor(PredictMc, levels=0:(m-1), labels=m.levels)
           } else {
             pred.data.t[,mediator] <- PredictMt
             pred.data.c[,mediator] <- PredictMc
@@ -2102,7 +2102,7 @@ med.fun <- function(y.data, index, m.data) {
     
     ### Case I-2-d: Linear
   } else if(isLm.m){
-    if (class(new.fit.M) == "speedlm")
+    if (inherits(new.fit.M,"speedlm"))
       sigma <- sqrt(summary(new.fit.M)$var.res)
     else
       sigma <- summary(new.fit.M)$sigma
@@ -2581,7 +2581,7 @@ print.summary.mediate <- function(x, ...){
   }
   colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                       paste(clp, "% CI Upper", sep=""), "p-value")
-  printCoefmat(smat, digits=3)
+  printCoefmat(smat, tst.ind=NULL)
   cat("\n")
   cat("Sample Size Used:", x$nobs,"\n\n")
   cat("\n")
@@ -2744,7 +2744,7 @@ print.summary.mediate.mer <- function(x,...){
   }
   colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                       paste(clp, "% CI Upper", sep=""), "p-value")
-  printCoefmat(smat, digits=3)
+  printCoefmat(smat, tst.ind=NULL)
   cat("\n")
   cat("Sample Size Used:", x$nobs,"\n\n")
   cat("\n")
@@ -2800,28 +2800,28 @@ print.summary.mediate.mer.2 <- function(x,...){
     rownames(smat) <- gname
     colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                         paste(clp, "% CI Upper", sep=""), "p-value") 
-    printCoefmat(smat, digits=3)
+    printCoefmat(smat, tst.ind=NULL)
     cat("\n")
     cat("ADE","\n\n")
     smat<-cbind(x$z0.group, x$z0.ci.group, x$z0.p.group)
     rownames(smat) <- gname
     colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                         paste(clp, "% CI Upper", sep=""), "p-value") 
-    printCoefmat(smat, digits=3)
+    printCoefmat(smat, tst.ind=NULL)
     cat("\n")
     cat("Total Effect","\n\n")
     smat<-cbind(x$tau.coef.group, x$tau.ci.group, x$tau.p.group)
     rownames(smat) <- gname
     colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                         paste(clp, "% CI Upper", sep=""), "p-value") 
-    printCoefmat(smat, digits=3)
+    printCoefmat(smat, tst.ind=NULL)
     cat("\n") 
     cat("Prop. Mediated","\n\n")
     smat<-cbind(x$n0.group, x$n0.ci.group, x$n0.p.group)
     rownames(smat) <- gname
     colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                         paste(clp, "% CI Upper", sep=""), "p-value") 
-    printCoefmat(smat, digits=3)
+    printCoefmat(smat, tst.ind=NULL)
     cat("\n")  
     
     cat("\n")
@@ -2835,70 +2835,70 @@ print.summary.mediate.mer.2 <- function(x,...){
     rownames(smat) <- gname
     colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                         paste(clp, "% CI Upper", sep=""), "p-value") 
-    printCoefmat(smat, digits=3)
+    printCoefmat(smat, tst.ind=NULL)
     cat("\n")
     cat("ACME (treated)","\n\n")
     smat<-cbind(x$d1.group, x$d1.ci.group, x$d1.p.group)
     rownames(smat) <- gname
     colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                         paste(clp, "% CI Upper", sep=""), "p-value") 
-    printCoefmat(smat, digits=3)
+    printCoefmat(smat, tst.ind=NULL)
     cat("\n")
     cat("ADE (control)","\n\n")
     smat<-cbind(x$z0.group, x$z0.ci.group, x$z0.p.group)
     rownames(smat) <- gname
     colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                         paste(clp, "% CI Upper", sep=""), "p-value") 
-    printCoefmat(smat, digits=3)
+    printCoefmat(smat, tst.ind=NULL)
     cat("\n")
     cat("ADE (treated)","\n\n")
     smat<-cbind(x$z1.group, x$z1.ci.group, x$z1.p.group)
     rownames(smat) <- gname
     colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                         paste(clp, "% CI Upper", sep=""), "p-value") 
-    printCoefmat(smat, digits=3)
+    printCoefmat(smat, tst.ind=NULL)
     cat("\n")    
     cat("Total Effect","\n\n")
     smat<-cbind(x$tau.coef.group, x$tau.ci.group, x$tau.p.group)
     rownames(smat) <- gname
     colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                         paste(clp, "% CI Upper", sep=""), "p-value") 
-    printCoefmat(smat, digits=3)
+    printCoefmat(smat, tst.ind=NULL)
     cat("\n") 
     cat("Prop. Mediated (control)","\n\n")
     smat<-cbind(x$n0.group, x$n0.ci.group, x$n0.p.group)
     rownames(smat) <- gname
     colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                         paste(clp, "% CI Upper", sep=""), "p-value") 
-    printCoefmat(smat, digits=3)
+    printCoefmat(smat, tst.ind=NULL)
     cat("\n")  
     cat("Prop. Mediated (treated)","\n\n")
     smat<-cbind(x$n1.group, x$n1.ci.group, x$n1.p.group)
     rownames(smat) <- gname
     colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                         paste(clp, "% CI Upper", sep=""), "p-value") 
-    printCoefmat(smat, digits=3)
+    printCoefmat(smat, tst.ind=NULL)
     cat("\n") 
     cat("ACME (average)","\n\n")
     smat<-cbind(x$d.avg.group, x$d.avg.ci.group, x$d.avg.p.group)
     rownames(smat) <- gname
     colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                         paste(clp, "% CI Upper", sep=""), "p-value") 
-    printCoefmat(smat, digits=3)
+    printCoefmat(smat, tst.ind=NULL)
     cat("\n") 
     cat("ADE (average)","\n\n")
     smat<-cbind(x$z.avg.group, x$z.avg.ci.group, x$z.avg.p.group)
     rownames(smat) <- gname
     colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                         paste(clp, "% CI Upper", sep=""), "p-value") 
-    printCoefmat(smat, digits=3)
+    printCoefmat(smat, tst.ind=NULL)
     cat("\n")
     cat("Prop. Mediated (average)","\n\n")
     smat<-cbind(x$n.avg.group, x$n.avg.ci.group, x$n.avg.p.group)   
     rownames(smat) <- gname
     colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                         paste(clp, "% CI Upper", sep=""), "p-value") 
-    printCoefmat(smat, digits=3)
+    printCoefmat(smat, tst.ind=NULL)
     cat("\n")                          
     
     cat("\n")
@@ -2965,7 +2965,7 @@ print.summary.mediate.mer.3 <- function(x,...){
                           "Prop. Mediated") 
       colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                           paste(clp, "% CI Upper", sep=""), "p-value")             
-      printCoefmat(smat, digits=3)
+      printCoefmat(smat, tst.ind=NULL)
     }
     cat("\n")
     cat("Sample Size Used:", x$nobs,"\n\n")
@@ -2996,7 +2996,7 @@ print.summary.mediate.mer.3 <- function(x,...){
                           "Prop. Mediated (average)") 
       colnames(smat) <- c("Estimate", paste(clp, "% CI Lower", sep=""),
                           paste(clp, "% CI Upper", sep=""), "p-value")             
-      printCoefmat(smat, digits=3)
+      printCoefmat(smat, tst.ind=NULL)
     }
     cat("\n")
     cat("Sample Size Used:", x$nobs,"\n\n")
@@ -3072,7 +3072,7 @@ print.summary.mediate.order <- function(x, ...){
   invisible(x)
 }
 #########################################################################
-plot.process <- function(model) {
+plot_process <- function(model) {
   coef.vec.1 <- c(model$d1, model$z1)
   lower.vec.1 <- c(model$d1.ci[1], model$z1.ci[1])
   upper.vec.1 <- c(model$d1.ci[2], model$z1.ci[2])
@@ -3181,7 +3181,7 @@ plot.mediate <- function(x, treatment = NULL, labels = NULL,
                         both = c(0,1))
   }
   
-  param <- plot.process(x)
+  param <- plot_process(x)
   
   y.axis <- (IND + DIR + TOT):1
   
@@ -3260,7 +3260,7 @@ plot.mediate <- function(x, treatment = NULL, labels = NULL,
 }
 
 #########################################################################
-plot.process.mer <- function(model) {
+plot_process.mer <- function(model) {
   coef.vec.1 <- c(model$d1, model$z1)
   lower.vec.1 <- c(model$d1.ci[1], model$z1.ci[1])
   upper.vec.1 <- c(model$d1.ci[2], model$z1.ci[2])
@@ -3361,7 +3361,7 @@ plot.mediate.mer <- function(x, treatment = NULL, group.plots = FALSE,
                              main = NULL, lwd = 1.5, cex = .85,
                              col = "black", ...){
   
-  param <- plot.process.mer(x)
+  param <- plot_process.mer(x)
   
   isLinear.y <- (	(class(x$model.y)[1] %in% c("lm", "rq")) || # lm or quantile
                     (inherits(x$model.y, "glm") &&
@@ -3562,7 +3562,7 @@ plot.mediate.mer <- function(x, treatment = NULL, group.plots = FALSE,
 }
 
 #########################################################################
-plot.process.order <- function(model){
+plot_process.order <- function(model){
   length <- length(model$d1)
   coef.vec.1 <- lower.vec.1 <- upper.vec.1 <-
     coef.vec.0 <- lower.vec.0 <- upper.vec.0 <- matrix(NA,ncol=2,nrow=length)
@@ -3613,7 +3613,7 @@ plot.mediate.order <- function(x, treatment = NULL,
                         both = c(0,1))
   }
   
-  param <- plot.process.order(x)
+  param <- plot_process.order(x)
   y.axis <- c(ncol(param$coef.vec.1):.5)
   y.axis <- y.axis + 1
   # create indicator for y.axis, descending so labels go from top to bottom
